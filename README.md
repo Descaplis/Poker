@@ -1,0 +1,1 @@
+docker run -d --name poker-db -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=[placeholder] -e POSTGRES_DB=poker-db -p 5432:5432 -v postgres_data:/var/lib/postgresql/data postgres:16
