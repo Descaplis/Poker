@@ -11,17 +11,17 @@ import Image from "next/image";
 //   }
 // }
 
-export default async function Home() {
+/* {people.map((person) => (
+          <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>
+))} */
+
+export default async function MainPage() {
   // const people = await getPersons();
 
   return (
     <div>
-      <h1 className="text-9xl text-blue-900">People</h1>
-      <ol>
-        {/* {people.map((person) => (
-          <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>
-        ))} */}
-      </ol>
+        <h1 className="">People</h1>
+        
     </div>
   );
 }
