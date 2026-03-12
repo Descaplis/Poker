@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 app.get("/",(req, res) => {
-    res.json({message: "Hello World"});
+    res.json({message: "Test"});
 });
 
 const httpServer = createServer(app);
