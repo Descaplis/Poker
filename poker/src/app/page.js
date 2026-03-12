@@ -1,4 +1,5 @@
 import Image from "next/image";
+import MainPage from "./Components/DefaultPage";
 // import db from "../../server/db";
 
 // async function getPersons() {
@@ -15,8 +16,8 @@ export default async function Home() {
   // const people = await getPersons();
 
   return (
-    <div>
-      <h1 className="text-9xl text-blue-900">People</h1>
+    <div className="w-full h-100">
+      <MainPage/>
       <ol>
         {/* {people.map((person) => (
           <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>
