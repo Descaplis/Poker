@@ -1,5 +1,6 @@
 import Image from "next/image";
 import MainPage from "./Components/DefaultPage";
+import CreateLobby from "./Components/create-lobby";
 // import db from "../../server/db";
 
 // async function getPersons() {
@@ -17,7 +18,7 @@ export default async function Home() {
 
   return (
     <div className="w-full h-100">
-      <MainPage/>
+      <CreateLobby/>
       <ol>
         {/* {people.map((person) => (
           <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>
