@@ -17,7 +17,7 @@ export default async function Home() {
   // const people = await getPersons();
 
   return (
-    <div className="w-full h-100">
+    <div className="max-w-full max-h-full">
       <CreateLobby/>
       <ol>
         {/* {people.map((person) => (
