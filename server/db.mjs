@@ -14,25 +14,51 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+async function createPotsTable() {
+  let query = `
+  CREATE TABLE IF NOT EXISTS pots(
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID,
+  pot_type VARCHAR(4) NOT NULL DEFAULT 'MAIN',
+  value INT NOT NULL
+  )`;
+  return await pool.query(query);
+}
+await createPotsTable();
+
+async function createPotPlayersTable() {
+  let query = `
+  CREATE TABLE IF NOT EXISTS pot_players(
+  pot_id UUID REFERENCES pots(id),
+  player_id UUID REFERENCES players(id),
+  PRIMARY KEY (pot_id, player_id)
+  )`;
+  return await pool.query(query);
+}
+await createPotPlayersTable();
+
+
 async function createPlayersTable() {
-  const query = 
+  let query = 
   `CREATE TABLE IF NOT EXISTS players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username VARCHAR(255) NOT NULL,
   seat INT,
   cards VARCHAR(2)[],
   game_id UUID,
+  pot_id UUID REFERENCES pots(id),
   bet INT,
   balance INT,
   last_move VARCHAR(5),
-  is_folded BOOLEAN NOT NULL DEFAULT FALSE
+  is_folded BOOLEAN NOT NULL DEFAULT FALSE,
+  hasGoneAllIn BOOLEAN NOT NULL DEFAULT FALSE
   )`;
   return await pool.query(query);
 }
 await createPlayersTable();
 
 async function createGamesTable() {
-  const query = 
+  let query = 
   `CREATE TABLE IF NOT EXISTS games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code VARCHAR(6) NOT NULL UNIQUE,
@@ -41,17 +67,13 @@ async function createGamesTable() {
   small_blind_value INT NOT NULL,
   initial_balance INT NOT NULL,
   status VARCHAR(8) NOT NULL DEFAULT 'waiting',
-  current_turn_seat INT,
-  FOREIGN KEY (current_turn_seat) REFERENCES players(seat),
   last_move VARCHAR(5),
   current_bet INT,
-  bet_sum INT,
+  pot INT,
   cards VARCHAR(2)[],
   cards_on_table VARCHAR(2)[],
   small_blind_seat INT,
-  FOREIGN KEY (small_blind_seat) REFERENCES players(seat),
-  big_blind_seat INT,
-  FOREIGN KEY (big_blind_seat) REFERENCES players(seat)
+  big_blind_seat INT
   )`;
   return await pool.query(query);
 }
@@ -63,18 +85,29 @@ async function checkIfGameExists(code) {
   return res.rows.length > 0;
 }
 
-const shuffleDeck = (deck) => deck.sort(() => Math.random() - 0.5);
+const createDeck = () => {
+  const colors = ['h', 'd', 'c', 's'];
+  const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+  let deck = [];
+
+  for (const color of colors) {
+    for (const rank of ranks) {
+      deck.push(`${rank}${color}`);
+    }
+  }
+  return shuffleDeck(deck);
+}
+
+const shuffleDeck = (deck) => {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+};
 
 // Remember that this function modifies the original deck by removing the chosen cards
-const chooseRandomCardsFromDeck = (deck, amount) => {
-  const chosenCards = [];
-  for (let i = 0; i < amount; i++) {
-    const randomIndex = Math.floor(Math.random() * deck.length);
-    chosenCards.push(deck[randomIndex]);
-    deck.splice(randomIndex, 1);
-  }
-  return chosenCards;
-};
+const drawCardsFromDeck = (deck, amount) => deck.splice(0, amount);
 
 async function createGame(playersAmount, timeForMove, smallBlindValue, initialBalance, hostUsername) {
   // Generate a unique 6-character code
@@ -88,17 +121,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
     }
   } while (existingCodes.includes(code));
 
-  // Generate deck of cards and shuffle it
-  const colors = ['H', 'D', 'C', 'S'];
-  const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-  let deck = [];
-
-  for (const color of colors) {
-    for (const rank of ranks) {
-      deck.push(`${rank}${color}`);
-    }
-  }
-  deck = shuffleDeck(deck);
+  const deck = createDeck();
 
   // Insert the new game into the database
   query = {
@@ -108,8 +131,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
     values: [code, playersAmount, timeForMove, smallBlindValue, initialBalance, deck, 0, 1]
   }
 
-  const gameResult = await pool.query(query);
-  const gameId = gameResult.rows[0].id;
+  const gameId = await pool.query(query).then(res => res.rows[0].id);
 
   // Insert the host player into the database
   query = {
@@ -151,14 +173,6 @@ async function joinGame(username, gameCode) {
   }
 }
 
-/* TODO:
-1. Betting
-2. Folding
-3. Checking
-4. Small and big blind
-5. Moving to the next turn
-*/
-
 async function BetBlinds(gameCode) {
   // Get the game
   let query = {
@@ -183,6 +197,8 @@ async function BetBlinds(gameCode) {
     }
     await pool.query(query);
   }
+
+  return "Blindy zostały postawione";
 }
 
 async function GiveCardsToPlayers(gameCode) {
@@ -204,7 +220,7 @@ async function GiveCardsToPlayers(gameCode) {
 
   // Give 2 cards to each player
   for (const player of players) {
-    const cards = chooseRandomCardsFromDeck(deck, 2);
+    const cards = drawCardsFromDeck(deck, 2);
     query = {
       text: `UPDATE players SET cards = $1 WHERE id = $2`,
       values: [cards, player.id]
@@ -217,14 +233,338 @@ async function GiveCardsToPlayers(gameCode) {
     text: `UPDATE games SET cards = $1 WHERE id = $2`,
     values: [deck, game.id]
   }
-  await pool.query(query);
+  return await pool.query(query);
+}
+
+async function PutCardsOnTable(gameCode, amount) {
+  // Get the game
+  let query = {
+    text: `SELECT id FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  const game = await pool.query(query).then(res => res.rows[0]);
+  const deck = game.cards;
+  const cardsOnTable = drawCardsFromDeck(deck, amount);
+
+  // Update cards on table
+  query = {
+    text: `UPDATE games SET cards_on_table = cards_on_table || $1, cards = $2 WHERE id = $3`,
+    values: [cardsOnTable, deck, game.id]
+  }
+  return await pool.query(query);
 }
 
 async function startGame(gameCode) {
-  // Give cards to players
   await BetBlinds(gameCode);
-  await GiveCardsToPlayers(gameCode);
+  return await GiveCardsToPlayers(gameCode);
+  // wait for players to make their moves, then put cards on table and so on
 }
 
-// Eksportujemy funkcję do wykonywania zapytań
+async function Raise(gameCode, seat, raiseAmount) {
+  // Pobieramy dedykowanego klienta z puli, aby użyć transakcji
+  const client = await pool.connect();
+
+  try {
+    // Rozpoczynamy transakcję bazodanową
+    await client.query('BEGIN');
+
+    // 1. Pobieramy grę (z FOR UPDATE, aby zablokować wiersz do końca transakcji)
+    let query = {
+      text: `SELECT id, current_bet FROM games WHERE code = $1 FOR UPDATE`,
+      values: [gameCode]
+    };
+    const game = await client.query(query).then(res => res.rows[0]);
+    
+    if (!game) throw new Error("Nie znaleziono gry.");
+
+    // 2. Pobieramy gracza wykonującego ruch (też FOR UPDATE)
+    query = {
+      text: `SELECT id, balance, bet FROM players WHERE game_id = $1 AND seat = $2 FOR UPDATE`,
+      values: [game.id, seat]
+    };
+    const player = await client.query(query).then(res => res.rows[0]);
+
+    if (!player) throw new Error("Nie znaleziono gracza na tym miejscu.");
+    if (player.balance < raiseAmount) throw new Error("Gracz nie ma wystarczająco żetonów.");
+
+    // 3. Obliczamy nowe wartości
+    const targetTotalBet = Number(game.current_bet) + Number(raiseAmount);
+    const amountToSubtract = targetTotalBet - Number(player.bet);
+    
+    // Gracz wchodzi all-in, gdy jego balans spada do zera
+    const isAllIn = targetTotalBet >= Number(player.balance);
+
+    // 4. Aktualizacja gracza (odjęcie kasy, aktualizacja jego całkowitego betu w rundzie)
+    query = {
+      text: `UPDATE players SET bet = $1, balance = balance - $2, "hasGoneAllIn" = ($3 = 0) WHERE id = $4`,
+      values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, player.id]
+    };
+    await client.query(query);
+
+    // 5. Aktualizacja najwyższego zakładu w grze (jeśli podbicie go przebiło)
+    query = {
+      text: `UPDATE games SET current_bet = $1 WHERE id = $2`,
+      values: [targetTotalBet, game.id]
+    }
+    await client.query(query);
+
+    // 6. Zatwierdzamy transakcję, bo wszystko się powiodło
+    await client.query('COMMIT');
+  } catch (error) {
+    // 7. W razie jakiegokolwiek błędu (np. brak kasy), cofamy wszystkie zmiany w bazie!
+    await client.query('ROLLBACK');
+    throw error; // rzucamy błąd dalej do złapania np. w Express/Socket.io
+  } finally {
+    // 8. Oddajemy pożyczone połączenie z powrotem do puli
+    if (client) {
+      client.release();
+    }
+  }
+
+  return await NextTurn(gameCode);
+}
+
+async function Fold(gameCode, seat) {
+  // Get the game
+  let query = {
+    text: `SELECT id FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  const game = await pool.query(query).then(res => res.rows[0]);
+
+  // Update player's status to folded
+  query = {
+    text: `UPDATE players SET is_folded = TRUE WHERE game_id = $1 AND seat = $2`,
+    values: [game.id, seat]
+  }
+  await pool.query(query);
+
+  return await NextTurn(gameCode);
+}
+
+async function Check(gameCode, seat) {
+  // Get the game
+  let query = {
+    text: `SELECT * FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  const game = await pool.query(query).then(res => res.rows[0]);
+
+  // Get current bet
+  const currentBet = game.current_bet;
+  if (currentBet === 0) {
+    return await NextTurn(gameCode);
+  }
+
+  // Check if player has enough balance to check
+  query = {
+    text: `SELECT balance FROM players WHERE game_id = $1 AND seat = $2`,
+    values: [game.id, seat]
+  }
+  const playerBalance = await pool.query(query).then(res => res.rows[0].balance);
+
+  if (playerBalance <= currentBet) {
+    // All-in - Player can only bet the amount of their balance, a side pull must then be created
+    query = {
+      text: `UPDATE players SET bet = bet + balance, balance = 0, hasGoneAllIn = TRUE WHERE game_id = $1 AND seat = $2`,
+      values: [game.id, seat]
+    }
+    await pool.query(query);
+  } else {
+    // Check - update player's bet and balance to match current bet
+    query = {
+      text: `UPDATE players SET bet = $1, balance = balance - $1 WHERE game_id = $2 AND seat = $3`,
+      values: [currentBet, game.id, seat]
+    }
+    await pool.query(query);
+  }
+
+  return await NextTurn(gameCode);
+}
+
+async function NextTurn(gameCode) {
+  // Get the game
+  let query = {
+    text: `SELECT current_turn_seat FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  const game = await pool.query(query).then(res => res.rows[0]);
+  // Determine the next turn seat
+  const nextTurnSeat = (game.current_turn_seat + 1) % (game.players_amount + 1);
+
+  // Update the current turn seat in the game
+  query = {
+    text: `UPDATE games SET current_turn_seat = $1 WHERE id = $2`,
+    values: [nextTurnSeat, game.id]
+  }
+  await pool.query(query);
+  return await EndRoundIfCan(game);
+}
+
+async function ResolvePots(gameId) {
+  // Get players who didn't fold and have bet more than 0
+  const players = (await pool.query(
+    `SELECT id, bet, "hasGoneAllIn", is_folded FROM players WHERE game_id = $1 AND bet > 0 ORDER BY bet ASC`,
+    [gameId]
+  )).rows;
+
+  if (players.length === 0) return;
+
+  let lastAllInLevel = 0;
+
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    const currentLevel = p.bet;
+
+    if (currentLevel > lastAllInLevel) {
+      const contributionPerPlayer = currentLevel - lastAllInLevel;
+      let potValue = 0;
+      let eligiblePlayerIds = [];
+
+      // Every player with bet >= currentLevel is on this pot
+      players.forEach(otherP => {
+        if (otherP.bet >= currentLevel) {
+          potValue += contributionPerPlayer;
+          if (!otherP.is_folded) {
+            eligiblePlayerIds.push(otherP.id);
+          }
+        }
+      });
+
+      // Insert the pot into the database
+      const type = (lastAllInLevel === 0) ? 'MAIN' : 'SIDE';
+      
+      const newPot = await pool.query(
+        `INSERT INTO pots (game_id, value, pot_type) VALUES ($1, $2, $3) RETURNING id`,
+        [gameId, potValue, type]
+      );
+
+      // Save which players are eligible for this pot
+      for (let playerId of eligiblePlayerIds) {
+        await pool.query(
+          `INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`,
+          [newPot.rows[0].id, playerId]
+        );
+      }
+
+      lastAllInLevel = currentLevel;
+    }
+  }
+}
+
+async function EndRoundIfCan(game) {
+  // Get the players
+  query = {
+    text: `SELECT * FROM players WHERE game_id = $1`,
+    values: [game.id]
+  }
+  const players = await pool.query(query).then(res => res.rows);
+
+  const currentBet = game.current_bet;
+  const activePlayers = players.filter(player => !player.is_folded);
+  const allPlayersHaveEqualBets = activePlayers.every(player => player.bet === currentBet || player.hasGoneAllIn);
+  if (allPlayersHaveEqualBets) {
+    await ResolvePots(game.id);
+    // End the round
+    query = {
+      text: `UPDATE players SET bet = 0 WHERE game_id = $1`,
+      values: [game.id]
+    }
+    await pool.query(query);
+
+    const small_blind_seat = (game.small_blind_seat + 1) % (game.players_amount + 1);
+    const big_blind_seat = (game.big_blind_seat + 1) % (game.players_amount + 1);
+    query = {
+      text: `UPDATE games SET current_bet = 0, current_turn_seat = 0, small_blind_seat = $1, big_blind_seat = $2 WHERE id = $3`,
+      values: [small_blind_seat, big_blind_seat, game.id]
+    }
+    await pool.query(query);
+
+    // Next round or end game if it was the last one
+    await NextRoundOrEndGame(game);
+    return "Round finished";
+  }
+}
+
+async function NextRoundOrEndGame(game) {
+  // If it was the last round, determine the winner and end the game
+  if (game.cards_on_table.length == 5) {
+    return await DetermineWinner(game);
+  } else {
+    // Put cards on table and start next round
+    await PutCardsOnTable(game.code, 1);
+    return await BetBlinds(game.code);
+  }
+}
+
+async function DetermineWinner(game) {
+  // Get the pots
+  let winners, ranks;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let query = {
+      text: `SELECT * FROM pots WHERE game_id = $1`,
+      values: [game.id]
+    }
+    const pots = await client.query(query).then(res => res.rows);
+
+    for (let pot of pots) {
+      // Find players who didn't fold
+      query = `SELECT p.id
+         FROM players p
+         JOIN pot_players pp ON p.id = pp.player_id
+         WHERE pp.pot_id = $1 AND p.is_folded = FALSE`;
+
+      const eligiblePlayers = await client.query(query).then(res => res.rows);
+
+      if (eligiblePlayers.length == 0) continue;
+
+      let Hand = require('pokersolver').Hand;
+      const playersHands = eligiblePlayers
+        .filter(player => !player.is_folded)
+        .map(player => {
+          const hand = Hand.solve([...player.cards, ...cardsOnTable]);
+          return { player, hand };
+        });
+
+      const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
+      winners = playersHands.filter(ph => ph.hand == winningHands);
+      ranks = winners.map(ph => ph.hand.name);
+
+      const share = Math.floor(pot.value / winners.length);
+      const remainder = pot.value % winners.length;
+
+      for (let i = 0; i < winners.length; i++) {
+        let amountToGive = share;
+
+        if (i === 0) amountToGive += remainder;
+
+        query = {
+          text: `UPDATE players SET balance = balance + $1 WHERE id = $2`,
+          values: [amountToGive, winners[i].id]
+        }
+        await client.query(query);
+      }
+    }
+
+    await client.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [game.id]);
+    await client.query(`DELETE FROM pots WHERE game_id = $1`, [game.id]);
+    await client.query(`UPDATE players SET is_folded = FALSE, "hasGoneAllIn" = FALSE, bet = 0 WHERE game_id = $1`, [game.id]);
+
+    await client.query("COMMIT");
+  } catch(e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+
+  return { winners: winners, ranks: ranks};
+}
+
+// FUNCTIONS TO GET CERTAIN VALUES
+
 export { pool };
