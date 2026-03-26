@@ -16,6 +16,23 @@
       transform: translateY(-20px);
     }
   }
+
+  --animate-bg: anim-bg 20s ease-in-out infinite;
+
+  @keyframes anim-bg {
+    0%, 100% {
+      transform: --bg-pos(25%);
+    }
+    50% {
+      transform: --bg-pos(75%);
+    }
+  }
+}
+
+@property --bg-pos {
+  syntax: "<percentages>";
+  inherits: false;
+  initial-value: 25%;
 }
 
 @media (prefers-color-scheme: dark) {

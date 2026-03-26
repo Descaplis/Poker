@@ -3,6 +3,7 @@ import MainPage from "./Components/DefaultPage";
 import CreateLobby from "./Components/create-lobby";
 import Player from "./Components/Player";
 import Lobby from "./Components/lobby";
+import TheGame from "./Components/theGame";
 // import db from "../../server/db";
 
 // async function getPersons() {
@@ -20,7 +21,7 @@ export default async function Home() {
 
   return (
     <div className="max-w-full max-h-full">
-      <Lobby/>
+      <TheGame/>
       <ol>
         {/* {people.map((person) => (
           <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>

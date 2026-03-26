@@ -18,7 +18,7 @@ export default async function MainPage() {
   // const people = await getPersons();
 
   return (
-    <div className="max-w-full h-239 bg-gray-900">
+    <div className="animate-bg max-w-full h-239 bg-radial-[at_50%_55%] from-gray-950 via-gray-950 to-gray-900 to-90%">
         <div className="flex justify-center items-center max-w-full h-full max-h-2/3">
           <img src="/images/title.png" alt="Title" className="animate-title"/>
         </div>
