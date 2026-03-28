@@ -73,7 +73,8 @@ async function createGamesTable() {
   cards VARCHAR(2)[],
   cards_on_table VARCHAR(2)[],
   small_blind_seat INT,
-  big_blind_seat INT
+  big_blind_seat INT,
+  current_turn_seat INT
   )`;
   return await pool.query(query);
 }
@@ -91,6 +92,7 @@ const createDeck = () => {
   let deck = [];
 
   for (const color of colors) {
+    
     for (const rank of ranks) {
       deck.push(`${rank}${color}`);
     }
@@ -388,9 +390,9 @@ async function NextTurn(gameCode) {
     text: `SELECT current_turn_seat FROM games WHERE code = $1`,
     values: [gameCode]
   }
-  const game = await pool.query(query).then(res => res.rows[0]);
+  const game = await pool.query(query).then(res => res.rows[0].current_turn_seat);
   // Determine the next turn seat
-  const nextTurnSeat = (game.current_turn_seat + 1) % (game.players_amount + 1);
+  const nextTurnSeat = (game.current_turn_seat + 1) % (game.players_amount);
 
   // Update the current turn seat in the game
   query = {
@@ -526,12 +528,12 @@ async function DetermineWinner(game) {
       const playersHands = eligiblePlayers
         .filter(player => !player.is_folded)
         .map(player => {
-          const hand = Hand.solve([...player.cards, ...cardsOnTable]);
+          const hand = Hand.solve([...player.cards, ...game.cards_on_table]);
           return { player, hand };
         });
 
       const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
-      winners = playersHands.filter(ph => ph.hand == winningHands);
+      winners = playersHands.filter(ph => winningHands.some(wh => wh === ph.hand));
       ranks = winners.map(ph => ph.hand.name);
 
       const share = Math.floor(pot.value / winners.length);
@@ -566,5 +568,68 @@ async function DetermineWinner(game) {
 }
 
 // FUNCTIONS TO GET CERTAIN VALUES
+// create game, join game, check if game exists, start game
+
+async function GetListOfPlayers(code) {
+  let query = {
+    text: `SELECT id FROM games WHERE code = $1`,
+    value: [code]
+  }
+  const gameid = await pool.query(query).then(res => res.rows[0].id);
+
+  query = {
+    text: `SELECT * FROM players WHERE game_id = $1`,
+    values: [gameid]
+  }
+  return await pool.query(query).then(res => res.rows);
+}
+
+async function GetMaximumRaiseValue(playerId) {
+  let query = {
+    text: `SELECT balance FROM players WHERE id = $1`,
+    values: [playerId]
+  }
+  return await pool.query(query).then(res => res.rows[0].balance);
+}
+
+async function GetPlayerCards(playerId) {
+  let query = {
+    text: `SELECT cards FROM players WHERE id = $1`,
+    values: [playerId]
+  }
+  return await pool.query(query).then(res => res.rows[0].cards);
+}
+
+async function GetCurrentTurnSeat(gameId) {
+  let query = {
+    text: `SELECT current_turn_seat FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+  return await pool.query(query).then(res => res.rows[0].current_turn_seat);
+}
+
+async function GetSmallBlindSeat(gameId) {
+  let query = {
+    text: `SELECT small_blind_seat FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+  return await pool.query(query).then(res => res.rows[0].small_blind_seat);
+}
+
+async function GetBigBlindSeat(gameId) {
+  let query = {
+    text: `SELECT big_blind_seat FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+  return await pool.query(query).then(res => res.rows[0].big_blind_seat);
+}
+
+async function GetCardsOnTable(gameId) {
+  let query = {
+    text: `SELECT cards_on_table FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+  return await pool.query(query).then(res => res.rows[0].cards_on_table);
+}
 
 export { pool };
