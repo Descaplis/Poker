@@ -22,7 +22,7 @@ export default async function Home() {
 
   return (
     <div className="max-w-full max-h-full">
-      <JoinLobby/>
+      <CreateLobby/>
       <ol>
         {/* {people.map((person) => (
           <li key={person.PersonID}>{person.FirstName} {person.LastName} from  {person.Address}, {person.City}</li>

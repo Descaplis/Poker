@@ -1,3 +1,4 @@
+
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import e, { text } from 'express';
@@ -29,7 +30,7 @@ async function createPotPlayersTable() {
   let query = `
   CREATE TABLE IF NOT EXISTS pot_players(
   pot_id UUID REFERENCES pots(id),
-  player_id UUID REFERENCES players(id),
+  player_id UUID,
   PRIMARY KEY (pot_id, player_id)
   )`;
   return await pool.query(query);
@@ -141,6 +142,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
   values: [hostUsername, gameId, 0, initialBalance],
   }
   await pool.query(query);
+  return gameId;
 }
 
 
@@ -631,4 +633,4 @@ async function GetCardsOnTable(gameId) {
   return await pool.query(query).then(res => res.rows[0].cards_on_table);
 }
 
-export { pool };
+export { pool, createGame, joinGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable };

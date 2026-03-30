@@ -3,15 +3,19 @@ dotenv.config();
 import { createServer } from "http";
 import { pool, createGame, joinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable } from './db.mjs';
 import express from "express";
+import createWebsocketServer from "./websocket.mjs";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors({origin: "http://localhost:3000"}));
 
 app.get("/",(req, res) => {
     res.json({message: "Test"});
 });
 
 app.post("/createGame", async (req, res) => {
+    console.log(req.body)
     if (req.body.playersAmount == null || req.body.timeForMove == null || req.body.smallBlindValue == null ||  req.body.initialBalance == null || req.body.username == null) {
         res.json({success: false});
         return;
@@ -130,3 +134,4 @@ app.get("/getMaximumRaiseValue", async (req, res) => {
 
 const httpServer = createServer(app);
 httpServer.listen(8080, ()=>{console.log("Server started on port 8080")});
+createWebsocketServer(httpServer);
