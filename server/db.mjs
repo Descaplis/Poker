@@ -148,7 +148,10 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
 
 async function joinGame(username, gameCode) {
   if (!(await checkIfGameExists(gameCode))) {
-    return "Gra z takim kodem nie istnieje";
+    return {
+      success: false,
+      message: "Gra z takim kodem nie istnieje"
+    };
   } else {
     // Get the game
     let query = {
@@ -164,7 +167,10 @@ async function joinGame(username, gameCode) {
     };
     const playersAmount = await pool.query(query).then(res => res.rows.length);
     if (playersAmount >= game.players_amount) {
-      return "Ta gra jest już pełna";
+      return {
+        success: false,
+        message: "Ta gra jest już pełna"
+      };
     }
 
     // Insert the new player
@@ -172,7 +178,10 @@ async function joinGame(username, gameCode) {
       text: `INSERT INTO players (username, game_id, seat, balance) VALUES ($1, $2, $3, $4)`,
       values: [username, game.id, playersAmount, game.initial_balance]
     };
-    return await pool.query(query);
+    await pool.query(query);
+    return {
+      success: true
+    }
   }
 }
 
