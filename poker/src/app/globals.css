@@ -21,10 +21,10 @@
 
   @keyframes anim-bg {
     0%, 100% {
-      transform: --bg-pos(25%);
+      transform: (--bg-pos: 25%;);
     }
     50% {
-      transform: --bg-pos(75%);
+      transform: (--bg-pos: 75%;);
     }
   }
 }
