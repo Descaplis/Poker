@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from "react";
+import { useState, useRef, useRouter } from "react";
 
 export default function CreateLobby() {
     const [plyrCount, setPlyrCount] = useState(4);
     const plyrRange = useRef();
+    const goBack = useRouter();
 
     return (
         <div className="max-w-full max-h-240 bg-gray-800">
@@ -37,7 +38,7 @@ export default function CreateLobby() {
                         <label className="text-white text-xl font-black mt-16">Czas na ruch:</label>
                         <input className="w-120 bg-amber-50 p-2 mb-15 rounded-xl border-yellow-600 border-solid border-4
                             focus:ring-4 focus:outline-none focus:ring-amber-500 dark:focus:ring-amber-800" type="text" name="moveTime"></input>
-                        <button type="button" className="bg-gradient-to-r from-green-400 via-green-500 to-green-600
+                        <button type="button" onClick={() => goBack.back()} className="bg-gradient-to-r from-green-400 via-green-500 to-green-600
                             hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-800 
                             shadow-lg shadow-green-500/50 dark:shadow-lg dark:shadow-green-800/80 rounded-base text-center
                             w-100 p-4 m-5 border-3 border-black self-start rounded-xl text-5xl font-black cursor-pointer">Wróć</button>
