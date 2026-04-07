@@ -6,7 +6,6 @@ export default function MainPage() {
 
   const router = useRouter();
 
-export default function MainPage() {
   return (
     <div className="animate-bg max-w-full h-239 bg-radial-[at_50%_55%] from-gray-950 via-gray-950 to-gray-900 to-90%">
         <div className="flex justify-center items-center max-w-full h-full max-h-2/3">

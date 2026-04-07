@@ -42,7 +42,7 @@ async function createPlayersTable() {
   let query = 
   `CREATE TABLE IF NOT EXISTS players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  username VARCHAR(255) NOT NULL,
+  username VARCHAR(25) NOT NULL,
   seat INT,
   cards VARCHAR(2)[],
   game_id UUID,
@@ -83,6 +83,16 @@ await createGamesTable();
 async function checkIfGameExists(code) {
   const query = "SELECT * FROM games WHERE code = $1";
   const res = await pool.query(query, [code]);
+  return res.rows.length > 0;
+}
+
+async function checkIfUsernameTaken(username, game) {
+  username = username.trim();
+  const query = {
+    text: `SELECT players.id FROM players JOIN games ON players.game_id = games.id WHERE players.username = $1 AND games.code = $2`,
+    values: [username, game.code]
+  };
+  const res = await pool.query(query);
   return res.rows.length > 0;
 }
 
@@ -147,41 +157,41 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
 
 
 async function joinGame(username, gameCode) {
-  if (!(await checkIfGameExists(gameCode))) {
-    return {
-      success: false,
-      message: "Gra z takim kodem nie istnieje"
-    };
-  } else {
-    // Get the game
-    let query = {
-      text: `SELECT * FROM games WHERE code = $1`,
-      values: [gameCode]
-    }
-    const game = await pool.query(query).then(res => res.rows[0]);
-    
-    // Check if there is a free seat in the game
-    query = {
-      text: `SELECT * FROM players WHERE game_id = $1`,
-      values: [game.id]
-    };
-    const playersAmount = await pool.query(query).then(res => res.rows.length);
-    if (playersAmount >= game.players_amount) {
-      return {
-        success: false,
-        message: "Ta gra jest już pełna"
-      };
-    }
+  const cleanUsername = username.trim();
 
-    // Insert the new player
-    query = {
+  if (!(await checkIfGameExists(gameCode))) {
+    return { success: false, message: "Gra z takim kodem nie istnieje" };
+  }
+
+  const gameQuery = {
+    text: `SELECT * FROM games WHERE code = $1`,
+    values: [gameCode]
+  };
+  const game = await pool.query(gameQuery).then(res => res.rows[0]);
+
+  if (await checkIfUsernameTaken(cleanUsername, game)) {
+    return { success: false, message: "Ta nazwa użytkownika jest już zajęta" };
+  }
+
+  const countQuery = {
+    text: `SELECT COUNT(*) FROM players WHERE game_id = $1`,
+    values: [game.id]
+  };
+  const playersAmount = await pool.query(countQuery).then(res => parseInt(res.rows[0].count));
+
+  if (playersAmount >= game.players_amount) {
+    return { success: false, message: "Ta gra jest już pełna" };
+  }
+
+  try {
+    const insertQuery = {
       text: `INSERT INTO players (username, game_id, seat, balance) VALUES ($1, $2, $3, $4)`,
-      values: [username, game.id, playersAmount, game.initial_balance]
+      values: [cleanUsername, game.id, playersAmount, game.initial_balance]
     };
-    await pool.query(query);
-    return {
-      success: true
-    }
+    await pool.query(insertQuery);
+    return { success: true };
+  } catch (err) {
+    return { success: false, message: err };
   }
 }
 
@@ -273,14 +283,11 @@ async function startGame(gameCode) {
 }
 
 async function Raise(gameCode, seat, raiseAmount) {
-  // Pobieramy dedykowanego klienta z puli, aby użyć transakcji
   const client = await pool.connect();
 
   try {
-    // Rozpoczynamy transakcję bazodanową
     await client.query('BEGIN');
 
-    // 1. Pobieramy grę (z FOR UPDATE, aby zablokować wiersz do końca transakcji)
     let query = {
       text: `SELECT id, current_bet FROM games WHERE code = $1 FOR UPDATE`,
       values: [gameCode]
@@ -289,7 +296,6 @@ async function Raise(gameCode, seat, raiseAmount) {
     
     if (!game) throw new Error("Nie znaleziono gry.");
 
-    // 2. Pobieramy gracza wykonującego ruch (też FOR UPDATE)
     query = {
       text: `SELECT id, balance, bet FROM players WHERE game_id = $1 AND seat = $2 FOR UPDATE`,
       values: [game.id, seat]
@@ -299,35 +305,28 @@ async function Raise(gameCode, seat, raiseAmount) {
     if (!player) throw new Error("Nie znaleziono gracza na tym miejscu.");
     if (player.balance < raiseAmount) throw new Error("Gracz nie ma wystarczająco żetonów.");
 
-    // 3. Obliczamy nowe wartości
     const targetTotalBet = Number(game.current_bet) + Number(raiseAmount);
     const amountToSubtract = targetTotalBet - Number(player.bet);
     
-    // Gracz wchodzi all-in, gdy jego balans spada do zera
     const isAllIn = targetTotalBet >= Number(player.balance);
 
-    // 4. Aktualizacja gracza (odjęcie kasy, aktualizacja jego całkowitego betu w rundzie)
     query = {
       text: `UPDATE players SET bet = $1, balance = balance - $2, "hasGoneAllIn" = ($3 = 0) WHERE id = $4`,
       values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, player.id]
     };
     await client.query(query);
 
-    // 5. Aktualizacja najwyższego zakładu w grze (jeśli podbicie go przebiło)
     query = {
       text: `UPDATE games SET current_bet = $1 WHERE id = $2`,
       values: [targetTotalBet, game.id]
     }
     await client.query(query);
 
-    // 6. Zatwierdzamy transakcję, bo wszystko się powiodło
     await client.query('COMMIT');
   } catch (error) {
-    // 7. W razie jakiegokolwiek błędu (np. brak kasy), cofamy wszystkie zmiany w bazie!
     await client.query('ROLLBACK');
-    throw error; // rzucamy błąd dalej do złapania np. w Express/Socket.io
+    throw error;
   } finally {
-    // 8. Oddajemy pożyczone połączenie z powrotem do puli
     if (client) {
       client.release();
     }
