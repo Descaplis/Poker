@@ -11,6 +11,7 @@ export default function MainPage() {
         <div className="flex justify-center items-center max-w-full h-full max-h-2/3">
           <img src="/images/title.png" alt="Title" className="animate-title"/>
         </div>
+
         <div className="flex justify-center items-center max-w-full h-full max-h-1/3 gap-5.5">
           <Link href="/join-lobby">
             <button type="button" className="bg-gradient-to-r from-rose-500 via-red-700 to-red-800 
