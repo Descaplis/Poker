@@ -1,4 +1,4 @@
-import Player from "./Player";
+import LobbyPlayer from "./lobbyPlayer";
 
 export default async function Lobby() {
     return (
@@ -9,8 +9,15 @@ export default async function Lobby() {
                     <h1 className="bg-clip-text text-transparent bg-gradient-to-r from-red-900 from-30% to-amber-300 to-70% text-5xl font-black text-center p-5">Pokój</h1>
                     <h2 className="font-black text-center text-3xl text-white">Kod:</h2>
                     <div className="flex items-center max-w-full h-full max-h-9/10 gap-5.5 flex-col pt-5">
-                        <div className="flex flex-col w-240 h-164 border-3 rounded-s-4xl border-white p-5 gap-2 overflow-y-auto overflow-x-hidden">
-                            {/* Miejsce na graczy */}
+                        <div className="flex flex-col w-240 h-164 border-3 rounded-s-4xl border-white p-5 gap-5 overflow-y-auto overflow-x-hidden">
+                            <LobbyPlayer name="Gracz 1"/>
+                            <LobbyPlayer name="Gracz 2"/>
+                            <LobbyPlayer name="Gracz 3"/>
+                            <LobbyPlayer name="Gracz 4"/>
+                            <LobbyPlayer name="Gracz 5"/>
+                            <LobbyPlayer name="Gracz 6"/>
+                            <LobbyPlayer name="Gracz 7"/>
+                            <LobbyPlayer name="Gracz 8"/>
                         </div>
                         <div>
                             <button type="button" className="bg-gradient-to-r from-rose-500 via-red-700 to-red-800 
