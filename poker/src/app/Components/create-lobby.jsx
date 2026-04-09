@@ -1,6 +1,6 @@
 'use client'
 
-import Error from "./error";
+import Error from "./elements/error";
 import { useState, useRef, useRouter } from "react";
 import axios from "axios";
 import Link from "next/link";

@@ -1,35 +1,49 @@
-import Player from "./Player";
+'use client'
+import Player from "./elements/Player";
+import { useState, useEffect } from "react";
 
-export default function theGame(){
-    return (
-        <div className="max-w-full w-full max-h-240 h-240 bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 to-90%">
-            <div className="flex flex-row">
-                <div className="flex flex-col items-center justify-evenly w-110 h-240">
-                    <Player name="8"/>
-                    <Player name="7"/>
-                </div>
-                <div className="w-7xl h-240">
-                    <div className="h-50 flex justify-evenly p-7">
-                        <Player name="Gracz 1"/>
-                        <Player name="Gracz 2"/>
+export default function theGame() {
+
+return (
+  <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 flex items-center justify-center p-4">
+    {/* Główny kontener gry */}
+    <div className="relative w-11/12 flex items-center justify-center">
+      {/* Gracze po lewej (8 i 7) */}
+      <div className="flex flex-col justify-around h-[60vh] md:h-[50vh]">
+        <Player name="Gracz 8" />
+        <Player name="Gracz 7" />
+      </div>
+
+        {/* Środek: Góra, Stół, Dół */}
+        <div className="flex-1 flex flex-col items-center gap-8">
+            {/* Gracze na górze (1 i 2) */}
+            <div className="flex justify-evenly w-full max-w-2xl gap-4">
+                <Player name="Gracz 1" />
+                <Player name="Gracz 2" />
+            </div>
+
+            {/* STÓŁ */}
+            <div className="w-full aspect-2/1 grow flex items-center justify-center  p-2 md:p-4">
+                <div className="aspect-2/1 w-full border-amber-900 border-4 lg:border-14 bg-radial-[at_35%_35%] from-gray-500 to-black rounded-[50px] lg:rounded-[100px] p-3 lg:p-6 shadow-2xl">
+                    <div className="w-full h-full bg-radial-[at_35%_35%] from-green-600 to-green-800 rounded-[40px]">
+                        <p className="text-white font-bold">MIEJSCE NA KARTY</p>
                     </div>
-                    <div className="flex justify-center h-140">
-                        <div className="w-6xl h-140 bg-radial-[at_35%_35%] from-gray-500 to-black to-75% rounded-4xl p-5">
-                            <div className="w-278 h-130 bg-radial-[at_35%_35%] from-green-600 to-green-800 to-75% rounded-4xl">
-                                {/* Miejsce na karty */}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="h-50 flex justify-evenly p-7">
-                        <Player name="Gracz 6"/>
-                        <Player name="Gracz 5"/>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center justify-evenly w-110 h-240">
-                    <Player name="3"/>
-                    <Player name="4"/>
                 </div>
             </div>
-        </div>
-    );
+
+            {/* Gracze na dole (5 i 6) */}
+            <div className="flex justify-evenly w-full max-w-2xl gap-4">
+                <Player name="Gracz 6" />
+                <Player name="Gracz 5" />
+            </div>
+      </div>
+
+      {/* Gracze po prawej (3 i 4) */}
+      <div className="flex flex-col justify-around h-[60vh] md:h-[50vh]">
+        <Player name="Gracz 3" />
+        <Player name="Gracz 4" />
+      </div>
+    </div>
+  </div>
+);
 }
