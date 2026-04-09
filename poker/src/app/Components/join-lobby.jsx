@@ -3,12 +3,12 @@
 import {React, useState} from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import Error from "./error";
+import Error from "./elements/error";
 
 export default function JoinLobby(){
     const goBack = useRouter();
-    const [username, setUsername] = useState();
-    const [code, setCode] = useState();
+    const [username, setUsername] = useState("");
+    const [code, setCode] = useState("");
     const [errors, setErrors] = useState([]);
 
     function showAlert(text) {
