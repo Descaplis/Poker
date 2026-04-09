@@ -99,7 +99,7 @@ export default function CreateLobby() {
                             focus:ring-4 focus:outline-none focus:ring-amber-500 dark:focus:ring-amber-800" type="number" name="startValue" onChange={(e) => setInitialBalance(e.currentTarget.value)}/>
                         <label className="text-white text-xl font-black mt-16">Czas na ruch:</label>
                         <input className="text-black w-120 bg-amber-50 p-2 mb-15 rounded-xl border-yellow-600 border-solid border-4
-                            focus:ring-4 focus:outline-none focus:ring-amber-500 dark:focus:ring-amber-800" type="number" name="moveTime" onChange={(e) => setTimeForMove(e.currentTarget.value)}/>
+                            focus:ring-4 focus:outline-none focus:ring-amber-500 dark:focus:ring-amber-800" type="number" min={10} max={120} name="moveTime" onChange={(e) => setTimeForMove(e.currentTarget.value)}/>
                         <Link className="self-start" href="/">
                             <button type="button" className="bg-gradient-to-r from-green-400 via-green-500 to-green-600
                                 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-800 
