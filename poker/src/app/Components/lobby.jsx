@@ -1,4 +1,4 @@
-import Player from "./Player";
+import Player from "./elements/Player";
 
 export default async function Lobby() {
     return (
