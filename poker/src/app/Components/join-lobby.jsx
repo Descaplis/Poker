@@ -6,7 +6,7 @@ import axios from "axios";
 import Error from "./elements/error";
 
 export default function JoinLobby(){
-    const goBack = useRouter();
+    const router = useRouter();
     const [username, setUsername] = useState("");
     const [code, setCode] = useState("");
     const [errors, setErrors] = useState([]);
@@ -37,7 +37,7 @@ export default function JoinLobby(){
             });
 
             if (res.data.result.success == true) {
-                goBack.push("/game");
+                router.push(`/lobby?code=${code}`);
             } else {
                 showAlert(res.data.result.message);
             }
@@ -71,7 +71,7 @@ export default function JoinLobby(){
                             shadow-lg shadow-amber-500/50 dark:shadow-lg dark:shadow-amber-800/80 rounded-base text-center
                             w-100 p-4 m-5 border-3 border-black self-end-safe rounded-xl text-5xl font-black cursor-pointer">Dołącz</button>
                         
-                        <button type="button" onClick={() => goBack.back()} className="bg-gradient-to-r from-green-400 via-green-500 to-green-600
+                        <button type="button" onClick={() => router.back()} className="bg-gradient-to-r from-green-400 via-green-500 to-green-600
                             hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-700 
                             shadow-lg shadow-green-500/50 dark:shadow-lg dark:shadow-green-800/80 rounded-base text-center
                             w-100 p-4 m-5 border-3 border-black self-start rounded-xl text-5xl font-black cursor-pointer">Wróć</button>

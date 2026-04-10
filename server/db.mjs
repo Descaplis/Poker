@@ -143,7 +143,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
     values: [code, playersAmount, timeForMove, smallBlindValue, initialBalance, deck, 0, 1]
   }
 
-  const gameId = await pool.query(query).then(res => res.rows[0].id);
+  const game = await pool.query(query).then(res => res.rows[0]);
 
   // Insert the host player into the database
   query = {
@@ -152,7 +152,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
   values: [hostUsername, gameId, 0, initialBalance],
   }
   await pool.query(query);
-  return gameId;
+  return game;
 }
 
 
@@ -582,7 +582,7 @@ async function DetermineWinner(game) {
 async function GetListOfPlayers(code) {
   let query = {
     text: `SELECT id FROM games WHERE code = $1`,
-    value: [code]
+    values: [code]
   }
   const gameid = await pool.query(query).then(res => res.rows[0].id);
 

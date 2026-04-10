@@ -1,6 +1,26 @@
-import LobbyPlayer from "./lobbyPlayer";
+"use client";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import LobbyPlayer from "./elements/lobbyPlayer";
+import axios from "axios";
 
-export default async function Lobby() {
+export default function Lobby() {
+    const [players, setPlayers] = useState([]);
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            const code = searchParams.get("code");
+            console.log(code);
+            const res = await axios.post("http://localhost:8080/getListOfPlayers", {
+                code: code
+            });
+            setPlayers(res.data.players);
+        };
+
+        fetchPlayers();
+    }, []);
+
     return (
         <div className="max-w-full h-240 bg-gray-800">
             <div className="grid columns-3 grid-flow-col">
@@ -10,14 +30,9 @@ export default async function Lobby() {
                     <h2 className="font-black text-center text-3xl text-white">Kod:</h2>
                     <div className="flex items-center max-w-full h-full max-h-9/10 gap-5.5 flex-col pt-5">
                         <div className="flex flex-col w-240 h-164 border-3 rounded-s-4xl border-white p-5 gap-5 overflow-y-auto overflow-x-hidden">
-                            <LobbyPlayer name="Gracz 1"/>
-                            <LobbyPlayer name="Gracz 2"/>
-                            <LobbyPlayer name="Gracz 3"/>
-                            <LobbyPlayer name="Gracz 4"/>
-                            <LobbyPlayer name="Gracz 5"/>
-                            <LobbyPlayer name="Gracz 6"/>
-                            <LobbyPlayer name="Gracz 7"/>
-                            <LobbyPlayer name="Gracz 8"/>
+                            {players?.map((player, index) => (
+                                <LobbyPlayer key={index} name={player.username}/>
+                            ))}
                         </div>
                         <div>
                             <button type="button" className="bg-gradient-to-r from-rose-500 via-red-700 to-red-800 

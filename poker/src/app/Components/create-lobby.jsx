@@ -45,6 +45,7 @@ export default function CreateLobby() {
                 username: username
             });
             console.log(res.data);
+            router.push(`/lobby?code=${res.data.code}`);
         } catch (error) {
             showAlert("Wystąpił błąd serwera!");
         }
