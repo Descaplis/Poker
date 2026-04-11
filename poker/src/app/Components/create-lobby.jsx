@@ -1,7 +1,8 @@
 'use client'
 
 import Error from "./elements/error";
-import { useState, useRef, useRouter } from "react";
+import { useState, useRef} from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
 
@@ -13,6 +14,7 @@ export default function CreateLobby() {
     const [username, setUsername] = useState("");
     const plyrRange = useRef();
     const [errors, setErrors] = useState([]);
+    const router = useRouter();
 
     const createRoom = async () => {
         if (username.trim() === "") {
@@ -45,7 +47,7 @@ export default function CreateLobby() {
                 username: username
             });
             console.log(res.data);
-            router.push(`/lobby?code=${res.data.code}`);
+            router.push(`/lobby?code=${res.data.game.code}&isHost=true`);
         } catch (error) {
             showAlert("Wystąpił błąd serwera!");
         }

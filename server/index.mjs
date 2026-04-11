@@ -20,8 +20,8 @@ app.post("/createGame", async (req, res) => {
         res.json({success: false});
         return;
     }
-    const gameId = await createGame(req.body.playersAmount, req.body.timeForMove, req.body.smallBlindValue, req.body.initialBalance, req.body.username);
-    res.json({gameId});
+    const game = await createGame(req.body.playersAmount, req.body.timeForMove, req.body.smallBlindValue, req.body.initialBalance, req.body.username);
+    res.json({game});
 });
 
 app.post("/joinGame", async (req, res) => {

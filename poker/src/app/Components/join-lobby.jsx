@@ -37,7 +37,8 @@ export default function JoinLobby(){
             });
 
             if (res.data.result.success == true) {
-                router.push(`/lobby?code=${code}`);
+                console.log(code);
+                router.push(`/lobby?code=${code}&isHost=false`);
             } else {
                 showAlert(res.data.result.message);
             }

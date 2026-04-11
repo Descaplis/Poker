@@ -139,7 +139,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
   query = {
     text: `INSERT INTO games (code, players_amount, time_for_move, small_blind_value, initial_balance, cards, small_blind_seat, big_blind_seat)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING id`,
+    RETURNING code, id`,
     values: [code, playersAmount, timeForMove, smallBlindValue, initialBalance, deck, 0, 1]
   }
 
@@ -149,7 +149,7 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
   query = {
   text: `INSERT INTO players (username, game_id, seat, balance)
   VALUES ($1, $2, $3, $4)`,
-  values: [hostUsername, gameId, 0, initialBalance],
+  values: [hostUsername, game.id, 0, initialBalance],
   }
   await pool.query(query);
   return game;
@@ -580,6 +580,7 @@ async function DetermineWinner(game) {
 // create game, join game, check if game exists, start game
 
 async function GetListOfPlayers(code) {
+  console.log(code);
   let query = {
     text: `SELECT id FROM games WHERE code = $1`,
     values: [code]
