@@ -46,9 +46,14 @@ export default function CreateLobby() {
                 initialBalance: initialBalance,
                 username: username
             });
-            console.log(res.data);
-            router.push(`/lobby?code=${res.data.game.code}&isHost=true`);
+            console.log(res.data.game);
+            sessionStorage.setItem("playerId", res.data.game.playerId);
+            sessionStorage.setItem("username", username);
+            sessionStorage.setItem("code", res.data.game.code);
+            sessionStorage.setItem("isHost", true);
+            router.push(`/lobby`);
         } catch (error) {
+            alert(error);
             showAlert("Wystąpił błąd serwera!");
         }
     }
