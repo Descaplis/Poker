@@ -14,7 +14,7 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-async function createPotsTable() {
+async function CreatePotsTable() {
   let query = `
   CREATE TABLE IF NOT EXISTS pots(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -24,9 +24,9 @@ async function createPotsTable() {
   )`;
   return await pool.query(query);
 }
-await createPotsTable();
+await CreatePotsTable();
 
-async function createPotPlayersTable() {
+async function CreatePotPlayersTable() {
   let query = `
   CREATE TABLE IF NOT EXISTS pot_players(
   pot_id UUID REFERENCES pots(id),
@@ -35,14 +35,15 @@ async function createPotPlayersTable() {
   )`;
   return await pool.query(query);
 }
-await createPotPlayersTable();
+await CreatePotPlayersTable();
 
 
-async function createPlayersTable() {
+async function CreatePlayersTable() {
   let query = 
   `CREATE TABLE IF NOT EXISTS players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username VARCHAR(25) NOT NULL,
+  isHost BOOLEAN NOT NULL,
   seat INT,
   cards VARCHAR(2)[],
   game_id UUID,
@@ -55,9 +56,9 @@ async function createPlayersTable() {
   )`;
   return await pool.query(query);
 }
-await createPlayersTable();
+await CreatePlayersTable();
 
-async function createGamesTable() {
+async function CreateGamesTable() {
   let query = 
   `CREATE TABLE IF NOT EXISTS games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,15 +79,15 @@ async function createGamesTable() {
   )`;
   return await pool.query(query);
 }
-await createGamesTable();
+await CreateGamesTable();
 
-async function checkIfGameExists(code) {
+async function CheckIfGameExists(code) {
   const query = "SELECT * FROM games WHERE code = $1";
   const res = await pool.query(query, [code]);
   return res.rows.length > 0;
 }
 
-async function checkIfUsernameTaken(username, game) {
+async function CheckIfUsernameTaken(username, game) {
   username = username.trim();
   const query = {
     text: `SELECT players.id FROM players JOIN games ON players.game_id = games.id WHERE players.username = $1 AND games.code = $2`,
@@ -96,7 +97,7 @@ async function checkIfUsernameTaken(username, game) {
   return res.rows.length > 0;
 }
 
-const createDeck = () => {
+const CreateDeck = () => {
   const colors = ['h', 'd', 'c', 's'];
   const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
   let deck = [];
@@ -107,10 +108,10 @@ const createDeck = () => {
       deck.push(`${rank}${color}`);
     }
   }
-  return shuffleDeck(deck);
+  return ShuffleDeck(deck);
 }
 
-const shuffleDeck = (deck) => {
+const ShuffleDeck = (deck) => {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -119,9 +120,9 @@ const shuffleDeck = (deck) => {
 };
 
 // Remember that this function modifies the original deck by removing the chosen cards
-const drawCardsFromDeck = (deck, amount) => deck.splice(0, amount);
+const DrawCardsFromDeck = (deck, amount) => deck.splice(0, amount);
 
-async function createGame(playersAmount, timeForMove, smallBlindValue, initialBalance, hostUsername) {
+async function CreateGame(playersAmount, timeForMove, smallBlindValue, initialBalance, hostUsername) {
   // Generate a unique 6-character code
   let query = `SELECT code FROM games`;
   const existingCodes = await pool.query(query).then(res => res.rows.map(row => row.code));
@@ -133,33 +134,33 @@ async function createGame(playersAmount, timeForMove, smallBlindValue, initialBa
     }
   } while (existingCodes.includes(code));
 
-  const deck = createDeck();
+  const deck = CreateDeck();
 
   // Insert the new game into the database
   query = {
     text: `INSERT INTO games (code, players_amount, time_for_move, small_blind_value, initial_balance, cards, small_blind_seat, big_blind_seat)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING id`,
+    RETURNING code, id`,
     values: [code, playersAmount, timeForMove, smallBlindValue, initialBalance, deck, 0, 1]
   }
 
-  const gameId = await pool.query(query).then(res => res.rows[0].id);
+  const game = await pool.query(query).then(res => res.rows[0]);
 
   // Insert the host player into the database
   query = {
-  text: `INSERT INTO players (username, game_id, seat, balance)
-  VALUES ($1, $2, $3, $4)`,
-  values: [hostUsername, gameId, 0, initialBalance],
+  text: `INSERT INTO players (username, game_id, seat, balance, isHost)
+  VALUES ($1, $2, $3, $4, $5) RETURNING id, username`,
+  values: [hostUsername, game.id, 0, initialBalance, true],
   }
-  await pool.query(query);
-  return gameId;
+  const player = await pool.query(query);
+  return {code: code, playerId: player.rows[0].id, username: player.rows[0].username};
 }
 
 
-async function joinGame(username, gameCode) {
+async function JoinGame(username, gameCode) {
   const cleanUsername = username.trim();
 
-  if (!(await checkIfGameExists(gameCode))) {
+  if (!(await CheckIfGameExists(gameCode))) {
     return { success: false, message: "Gra z takim kodem nie istnieje" };
   }
 
@@ -169,7 +170,7 @@ async function joinGame(username, gameCode) {
   };
   const game = await pool.query(gameQuery).then(res => res.rows[0]);
 
-  if (await checkIfUsernameTaken(cleanUsername, game)) {
+  if (await CheckIfUsernameTaken(cleanUsername, game)) {
     return { success: false, message: "Ta nazwa użytkownika jest już zajęta" };
   }
 
@@ -185,14 +186,22 @@ async function joinGame(username, gameCode) {
 
   try {
     const insertQuery = {
-      text: `INSERT INTO players (username, game_id, seat, balance) VALUES ($1, $2, $3, $4)`,
-      values: [cleanUsername, game.id, playersAmount, game.initial_balance]
+      text: `INSERT INTO players (username, game_id, seat, balance, isHost) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      values: [cleanUsername, game.id, playersAmount, game.initial_balance, false]
     };
-    await pool.query(insertQuery);
-    return { success: true };
+    const result = await pool.query(insertQuery);
+    return { success: true, playerId: result.rows[0].id };
   } catch (err) {
     return { success: false, message: err };
   }
+}
+
+async function LeaveGame(playerId) {
+  const query = {
+    text: `DELETE FROM players WHERE id = $1`,
+    values: [playerId]
+  }
+  return await pool.query(query);
 }
 
 async function BetBlinds(gameCode) {
@@ -242,7 +251,7 @@ async function GiveCardsToPlayers(gameCode) {
 
   // Give 2 cards to each player
   for (const player of players) {
-    const cards = drawCardsFromDeck(deck, 2);
+    const cards = DrawCardsFromDeck(deck, 2);
     query = {
       text: `UPDATE players SET cards = $1 WHERE id = $2`,
       values: [cards, player.id]
@@ -266,7 +275,7 @@ async function PutCardsOnTable(gameCode, amount) {
   }
   const game = await pool.query(query).then(res => res.rows[0]);
   const deck = game.cards;
-  const cardsOnTable = drawCardsFromDeck(deck, amount);
+  const cardsOnTable = DrawCardsFromDeck(deck, amount);
 
   // Update cards on table
   query = {
@@ -577,12 +586,11 @@ async function DetermineWinner(game) {
 }
 
 // FUNCTIONS TO GET CERTAIN VALUES
-// create game, join game, check if game exists, start game
 
 async function GetListOfPlayers(code) {
   let query = {
     text: `SELECT id FROM games WHERE code = $1`,
-    value: [code]
+    values: [code]
   }
   const gameid = await pool.query(query).then(res => res.rows[0].id);
 
@@ -641,4 +649,20 @@ async function GetCardsOnTable(gameId) {
   return await pool.query(query).then(res => res.rows[0].cards_on_table);
 }
 
-export { pool, createGame, joinGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable };
+async function GetUserById(playerId) {
+  let query = {
+    text: `SELECT * FROM players  WHERE id = $1`,
+    values: [playerId]
+  }
+   return await pool.query(query).then(res => res.rows[0]);
+}
+
+async function GetGameById(gameId) {
+  let query = {
+    text: `SELECT * FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+   return await pool.query(query).then(res => res.rows[0]);
+}
+
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById };
