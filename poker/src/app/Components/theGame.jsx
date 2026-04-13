@@ -1,6 +1,9 @@
 'use client'
 import Player from "./elements/Player";
 import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
+
+const socket = io("http://" + window.location.hostname + ":8080");
 
 export default function theGame() {
 

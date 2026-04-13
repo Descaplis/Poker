@@ -33,6 +33,17 @@ export default function Lobby() {
         router.push("/");
     }
 
+    const handleStart = async () => {
+        try {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/startGame", {
+                code: code
+            });
+            router.push("/game");
+        } catch (error) {
+            console.error("Error starting game:", error);
+        }
+    }
+
     useEffect(() => {
         const storedCode = sessionStorage.getItem("code");
         const storedPlayerId = sessionStorage.getItem("playerId");
@@ -69,14 +80,17 @@ export default function Lobby() {
                             ))}
                         </div>
                         <div>
-                            <button type="button" onClick={handleLeave}
+                            <button type="button"
+                            onClick={handleLeave}
                             className="bg-gradient-to-r from-rose-500 via-red-700 to-red-800 
                                 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-500 dark:focus:ring-red-800 
                                 shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 rounded-base text-center
                                 w-100 p-4 m-3 border-4 border-black self-start rounded-xl text-5xl font-black cursor-pointer">Wyjdź</button>
                                 
                                 {isHost == 'true' ? (
-                                    <button type="button" className="text-gray-200 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 
+                                    <button type="button"
+                                    onClick={handleStart}
+                                    className="text-gray-200 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 
                                         hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-700 dark:focus:ring-red-800 
                                         shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 rounded-base text-center
                                         w-100 p-4 m-3 border-3 border-red-800 self-start rounded-xl text-5xl font-black cursor-pointer">Start</button>
