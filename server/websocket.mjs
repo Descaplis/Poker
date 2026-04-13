@@ -4,7 +4,7 @@ import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, 
 const createWebsocketServer = (httpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: ["http://localhost:3000"]
+            origin: ["http://localhost:3000", "http://192.168.88.14:3000"],
         }
     });
     const disconnectTimeouts = {};

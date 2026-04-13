@@ -31,7 +31,7 @@ export default function JoinLobby(){
         }
 
         try {
-            const res = await axios.post("http://localhost:8080/joinGame", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/joinGame", {
                 code: code,
                 username: username
             });

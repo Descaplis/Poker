@@ -39,7 +39,7 @@ export default function CreateLobby() {
         }
 
         try {
-            const res = await axios.post("http://localhost:8080/createGame", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/createGame", {
                 playersAmount: plyrCount,
                 timeForMove: timeForMove,
                 smallBlindValue: smallBlind,

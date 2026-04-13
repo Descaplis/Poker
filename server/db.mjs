@@ -285,7 +285,32 @@ async function PutCardsOnTable(gameCode, amount) {
   return await pool.query(query);
 }
 
+async function updateSeats(gameCode) {
+  let query = {
+    text: `SELECT id FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  const game = await pool.query(query).then(res => res.rows[0]);
+  query = {
+    text: 
+    `UPDATE players
+    SET seat = subquery.new_seat
+    FROM (
+        SELECT
+            id,
+            ROW_NUMBER() OVER (PARTITION BY game_id ORDER BY seat) - 1 AS new_seat
+        FROM players
+        WHERE game_id = $1
+    ) AS subquery
+    WHERE players.id = subquery.id;`,
+    values: [game.id]
+  }
+  return await pool.query(query);
+}
+
 async function startGame(gameCode) {
+  // Ensure that player seats are well set (in case some players left the game before it started)
+  await updateSeats(gameCode);
   await BetBlinds(gameCode);
   return await GiveCardsToPlayers(gameCode);
   // wait for players to make their moves, then put cards on table and so on

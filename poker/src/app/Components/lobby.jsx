@@ -6,7 +6,7 @@ import LobbyPlayer from "./elements/lobbyPlayer";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:8080");
+const socket = io("http://" + window.location.hostname + ":8080");
 
 export default function Lobby() {
     const [players, setPlayers] = useState([]);
@@ -18,7 +18,7 @@ export default function Lobby() {
     const fetchPlayers = async () => {
         if (!code) return;
         try {
-            const res = await axios.post("http://localhost:8080/getListOfPlayers", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
                 code: code
             });
             setPlayers(res.data.players);
