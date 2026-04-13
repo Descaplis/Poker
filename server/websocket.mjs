@@ -48,6 +48,44 @@ const createWebsocketServer = (httpServer) => {
             }
         });
 
+        socket.on("get_cards", async (playerId, callback) => {
+            console.log(`Player ${playerId} wants to get his cards`);
+            let cards = await GetPlayerCards(playerId);
+            // Changing database format (for example 9s) to game format (for example 9Pik)
+            cards = cards.map((card) => {
+                let realName = "";
+                const ranksEquivalents = {
+                    T: "10",
+                    J: "jack",
+                    Q: "queen",
+                    K: "king",
+                    A: "as"
+                };
+                
+                const colorsEquivalents = {
+                    h: "Kier",
+                    d: "Karo",
+                    c: "Trefl",
+                    s: "Pik"
+                }
+
+                if (Object.keys(ranksEquivalents).includes(card[0])) {
+                    realName = ranksEquivalents[card[0]];
+                } else {
+                    realName = card[0];
+                }
+
+                realName += colorsEquivalents[card[1]];
+                return realName;
+            });
+
+            callback(cards);
+        });
+
+        socket.on("get_players", async () => {
+            const players = await GetListOfPlayers();
+        });
+
         socket.on("disconnect", async () => {
             console.log("A user disconnected");
             if (socket.userData) {
