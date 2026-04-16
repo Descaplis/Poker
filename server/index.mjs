@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { pool, createGame, joinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
@@ -20,8 +20,8 @@ app.post("/createGame", async (req, res) => {
         res.json({success: false});
         return;
     }
-    const gameId = await createGame(req.body.playersAmount, req.body.timeForMove, req.body.smallBlindValue, req.body.initialBalance, req.body.username);
-    res.json({gameId});
+    const game = await CreateGame(req.body.playersAmount, req.body.timeForMove, req.body.smallBlindValue, req.body.initialBalance, req.body.username);
+    res.json({game});
 });
 
 app.post("/joinGame", async (req, res) => {
@@ -29,7 +29,7 @@ app.post("/joinGame", async (req, res) => {
         res.json({success: false});
         return;
     }
-    const result = await joinGame(req.body.username, req.body.code);
+    const result = await JoinGame(req.body.username, req.body.code);
     res.json({result});
 });
 
