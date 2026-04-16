@@ -527,8 +527,10 @@ async function EndRoundIfCan(game) {
 
     // Next round or end game if it was the last one
     await NextRoundOrEndGame(game);
-    return "Round finished";
+    return {roundFinished: true};
   }
+
+  return {roundFinished: false};
 }
 
 async function NextRoundOrEndGame(game) {
@@ -650,6 +652,14 @@ async function GetCurrentTurnSeat(gameId) {
   return await pool.query(query).then(res => res.rows[0].current_turn_seat);
 }
 
+async function GetTimeForMove(gameId) {
+  let query = {
+    text: `SELECT time_for_move FROM games WHERE id = $1`,
+    values: [gameId]
+  }
+  return await pool.query(query).then(res => res.rows[0].time_for_move);
+}
+
 async function GetSmallBlindSeat(gameId) {
   let query = {
     text: `SELECT small_blind_seat FROM games WHERE id = $1`,
@@ -690,4 +700,4 @@ async function GetGameById(gameId) {
    return await pool.query(query).then(res => res.rows[0]);
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById };
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove };

@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
 
 const createWebsocketServer = (httpServer) => {
     const io = new Server(httpServer, {
@@ -8,6 +8,7 @@ const createWebsocketServer = (httpServer) => {
         }
     });
     const disconnectTimeouts = {};
+    const userSessionStore = new Map();
 
     io.on("connection", (socket) => {
         const joinRoom = (code) => {
@@ -33,57 +34,40 @@ const createWebsocketServer = (httpServer) => {
                     playerId: user.id,
                     username: user.username,
                     code: game.code,
+                    gameId: game.id,
                     isHost: user.ishost
                 };
-                socket.join(user.game_id);
+                userSessionStore.set(user.id, socket.userData);
+                socket.join(game.code);
                 joinRoom(game.code);
             }
         });
 
         socket.on("leave_room", async (playerId) => {
-            if (socket.userData) {
-                const {playerId, code} = socket.userData;
-                const res = await LeaveGame(playerId);
-                io.to(code).emit("refresh_list");
+            const code = userSessionStore.get(playerId).code;
+            await LeaveGame(playerId);
+            io.to(code).emit("refresh_list");
+        });
+
+        socket.on("move", async (moveData) => {
+            // moveData: action, gameCode, playerId
+            switch (moveData.action) {} // raise, check, fold
+            io.to(moveData.gameCode).emit("player_moved");
+        });
+
+        socket.on("next_turn", async (playerId) => {
+            const userData = userSessionStore.get(playerId);
+            console.log(userData);
+            if (userData) {
+                socket.join(userData.code);
+                console.log("found socket userdata");
+                const timeForMove = await GetTimeForMove(userData.gameId);
+                const endTime = Date.now() + timeForMove * 1000;
+                console.log(`Emitting timer update to room ${userData.code} with end time ${endTime}`);
+                io.to(userData.code).emit("timer_update", {endTime: endTime});
+            } else {
+                console.log("cant find socket userdata");
             }
-        });
-
-        socket.on("get_cards", async (playerId, callback) => {
-            console.log(`Player ${playerId} wants to get his cards`);
-            let cards = await GetPlayerCards(playerId);
-            // Changing database format (for example 9s) to game format (for example 9Pik)
-            cards = cards.map((card) => {
-                let realName = "";
-                const ranksEquivalents = {
-                    T: "10",
-                    J: "jack",
-                    Q: "queen",
-                    K: "king",
-                    A: "as"
-                };
-                
-                const colorsEquivalents = {
-                    h: "Kier",
-                    d: "Karo",
-                    c: "Trefl",
-                    s: "Pik"
-                }
-
-                if (Object.keys(ranksEquivalents).includes(card[0])) {
-                    realName = ranksEquivalents[card[0]];
-                } else {
-                    realName = card[0];
-                }
-
-                realName += colorsEquivalents[card[1]];
-                return realName;
-            });
-
-            callback(cards);
-        });
-
-        socket.on("get_players", async () => {
-            const players = await GetListOfPlayers();
         });
 
         socket.on("disconnect", async () => {
@@ -104,9 +88,7 @@ const createWebsocketServer = (httpServer) => {
                 }, 5000);
             }
         });
-    });
-
-    
+    }); 
 }
 
 

@@ -1,16 +1,18 @@
 'use client'
 import Player from "./elements/Player";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
+import Timer from "./elements/timer";
 
 const socket = io("http://" + window.location.hostname + ":8080");
 
 export default function theGame() {
   const [players, setPlayers] = useState([]);
   const [myCards, setMyCards] = useState([]);
+  const [timerEndTime, setTimerEndTime] = useState();
   const myId = sessionStorage.getItem("playerId");
-  const code = sessionStorage.getItem("code");
+  const gameCode = sessionStorage.getItem("code");
 
   const convertCardNames = (myCards) => {
     myCards = myCards.map((card) => {
@@ -45,7 +47,7 @@ export default function theGame() {
   useEffect(() => {
     const fetchData = async () => {
       const res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
-        code: code
+        code: gameCode
       });
       const players = res.data.players;
       console.log(players);
@@ -56,11 +58,23 @@ export default function theGame() {
       setMyCards(myCards);
     };
 
+    socket.on("timer_update", (data) => {
+      console.log("Received timer update: ", data.endTime);
+      setTimerEndTime(data.endTime);
+    });
+
     fetchData();
+    return () => socket.off("timer_update");
   }, []);
+
+  const handleMove = () => {
+    socket.emit("next_turn", myId);
+  }
 
   return (
     <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 flex items-center justify-center p-4">
+      <Timer endTime={timerEndTime}/>
+      <button onClick={handleMove} className="bg-amber-800 text-white">Next turn</button>
       {/* Główny kontener gry */}
       <div className="relative w-11/12 flex items-center justify-center">
         {/* Gracze po lewej (8 i 7) */}
