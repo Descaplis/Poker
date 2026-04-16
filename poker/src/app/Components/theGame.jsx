@@ -5,13 +5,13 @@ import { useState, useEffect } from "react";
 export default function theGame() {
 
 return (
-  <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 flex items-center justify-center p-4">
+  <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-gray-400 from-20% via-gray-600 via-55% to-gray-900 flex items-center justify-center p-4">
     {/* Główny kontener gry */}
     <div className="relative w-10/11 flex items-center justify-center">
       {/* Gracze po lewej (8 i 7) */}
       <div className="flex flex-col justify-around gap-[10vh] h-[60vh] md:h-[50vh]">
-        <Player name="Gracz 8" />
-        <Player name="Gracz 7" />
+        <Player name="Gracz 8" position="left"/>
+        <Player name="Gracz 7" position="left"/>
       </div>
 
         {/* Środek: Góra, Stół, Dół */}
@@ -44,8 +44,8 @@ return (
 
       {/* Gracze po prawej (3 i 4) */}
       <div className="flex flex-col justify-around gap-[10vh] h-[60vh] md:h-[50vh]">
-        <Player name="Gracz 3" />
-        <Player name="Gracz 4" />
+        <Player name="Gracz 3" position="right"/>
+        <Player name="Gracz 4" position="right"/>
       </div>
     </div>
   </div>
