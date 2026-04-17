@@ -42,15 +42,6 @@ app.post("/getListOfPlayers", async (req, res) => {
     res.json({players});
 });
 
-app.post("/startGame", async (req, res) => {
-    if (req.body.code == null) {
-        res.json({success: false});
-        return;
-    }
-    const result = await startGame(req.body.code);
-    res.json({result})
-});
-
 app.post("/raise", async (req, res) => {
     if (req.body.code == null || req.body.seat == null || req.body.amount  == null) {
         res.json({success: false});

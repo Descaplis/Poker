@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
+import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
 
 const createWebsocketServer = (httpServer) => {
     const io = new Server(httpServer, {
@@ -15,6 +15,21 @@ const createWebsocketServer = (httpServer) => {
             socket.join(code);
             console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} joined the room ${code}`);
             io.to(code).emit("refresh_list");
+        }
+
+        const nextTurn = async (playerId) => {
+            const userData = userSessionStore.get(playerId);
+            console.log(userData);
+            if (userData) {
+                socket.join(userData.code);
+                console.log("found socket userdata");
+                const timeForMove = await GetTimeForMove(userData.gameId);
+                const endTime = Date.now() + timeForMove * 1000;
+                console.log(`Emitting timer update to room ${userData.code} with end time ${endTime}`);
+                io.to(userData.code).emit("timer_update", {endTime: endTime});
+            } else {
+                console.log("cant find socket userdata");
+            }
         }
 
         socket.on("auth", async (playerId) => {
@@ -49,25 +64,28 @@ const createWebsocketServer = (httpServer) => {
             io.to(code).emit("refresh_list");
         });
 
-        socket.on("move", async (moveData) => {
-            // moveData: action, gameCode, playerId
-            switch (moveData.action) {} // raise, check, fold
-            io.to(moveData.gameCode).emit("player_moved");
+        socket.on("start_game", async (playerId) => {
+            await startGame(playerId);
         });
 
-        socket.on("next_turn", async (playerId) => {
-            const userData = userSessionStore.get(playerId);
-            console.log(userData);
-            if (userData) {
-                socket.join(userData.code);
-                console.log("found socket userdata");
-                const timeForMove = await GetTimeForMove(userData.gameId);
-                const endTime = Date.now() + timeForMove * 1000;
-                console.log(`Emitting timer update to room ${userData.code} with end time ${endTime}`);
-                io.to(userData.code).emit("timer_update", {endTime: endTime});
-            } else {
-                console.log("cant find socket userdata");
+        socket.on("move", async (moveData) => {
+            // moveData: action, gameCode, playerId
+            let res;
+            switch (moveData.action) {
+                case "raise":
+                    res = await Raise(moveData.gameCode, moveData.playerId, moveData.raiseValue);
+                    console.log(res);
+                    break;
+                case "check":
+                    res = await Check(moveData.gameCode, moveData.playerId);
+                    console.log(res);
+                    break;
+                case "fold":
+                    res = await Fold(moveData.gameCode, moveData.playerId);
+                    console.log(res);
+                    break;
             }
+            nextTurn(moveData.playerId);
         });
 
         socket.on("disconnect", async () => {
@@ -79,7 +97,7 @@ const createWebsocketServer = (httpServer) => {
                 disconnectTimeouts[socket.userData.playerId] = setTimeout(async () => {
                     try {
                         const {playerId, code} = socket.userData;
-                        const res = await LeaveGame(playerId);
+                        await LeaveGame(playerId);
                         io.to(code).emit("refresh_list");
                         delete disconnectTimeouts[playerId];
                     } catch (err) {

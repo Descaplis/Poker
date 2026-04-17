@@ -11,6 +11,7 @@ export default function theGame() {
   const [players, setPlayers] = useState([]);
   const [myCards, setMyCards] = useState([]);
   const [timerEndTime, setTimerEndTime] = useState();
+  const [currentBet, setCurrentBet] = useState();
   const myId = sessionStorage.getItem("playerId");
   const gameCode = sessionStorage.getItem("code");
 
@@ -56,6 +57,7 @@ export default function theGame() {
       let myCards = players.filter((player) => player.id == myId)[0].cards;
       myCards = convertCardNames(myCards);
       setMyCards(myCards);
+      console.log(myCards);
     };
 
     socket.on("timer_update", (data) => {
@@ -64,11 +66,18 @@ export default function theGame() {
     });
 
     fetchData();
+    socket.emit("start_game", myId);
+
     return () => socket.off("timer_update");
   }, []);
 
   const handleMove = () => {
-    socket.emit("next_turn", myId);
+    socket.emit("move", {
+      action: "raise",
+      raiseValue: 5,
+      playerId: myId,
+      gameCode: gameCode
+    });
   }
 
   return (

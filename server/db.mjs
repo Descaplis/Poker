@@ -286,11 +286,13 @@ async function PutCardsOnTable(gameCode, amount) {
 }
 
 async function updateSeats(gameCode) {
+  console.log(`Updating seats for game with code ${gameCode}...`);
   let query = {
-    text: `SELECT id FROM games WHERE code = $1`,
+    text: `SELECT * FROM games WHERE code = $1`,
     values: [gameCode]
   }
   const game = await pool.query(query).then(res => res.rows[0]);
+  console.log("Game:", game);
   query = {
     text: 
     `UPDATE players
@@ -316,7 +318,7 @@ async function startGame(gameCode) {
   // wait for players to make their moves, then put cards on table and so on
 }
 
-async function Raise(gameCode, seat, raiseAmount) {
+async function Raise(gameCode, playerId, raiseAmount) {
   const client = await pool.connect();
 
   try {
@@ -331,8 +333,8 @@ async function Raise(gameCode, seat, raiseAmount) {
     if (!game) throw new Error("Nie znaleziono gry.");
 
     query = {
-      text: `SELECT id, balance, bet FROM players WHERE game_id = $1 AND seat = $2 FOR UPDATE`,
-      values: [game.id, seat]
+      text: `SELECT id, balance, bet FROM players WHERE id = $1 FOR UPDATE`,
+      values: [playerId]
     };
     const player = await client.query(query).then(res => res.rows[0]);
 
@@ -345,8 +347,8 @@ async function Raise(gameCode, seat, raiseAmount) {
     const isAllIn = targetTotalBet >= Number(player.balance);
 
     query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $2, "hasGoneAllIn" = ($3 = 0) WHERE id = $4`,
-      values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, player.id]
+      text: `UPDATE players SET bet = $1, balance = balance - $2, hasGoneAllIn = ($3 = 0) WHERE id = $4`,
+      values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, playerId]
     };
     await client.query(query);
 
@@ -369,25 +371,17 @@ async function Raise(gameCode, seat, raiseAmount) {
   return await NextTurn(gameCode);
 }
 
-async function Fold(gameCode, seat) {
-  // Get the game
-  let query = {
-    text: `SELECT id FROM games WHERE code = $1`,
-    values: [gameCode]
-  }
-  const game = await pool.query(query).then(res => res.rows[0]);
-
-  // Update player's status to folded
+async function Fold(playerId) {
   query = {
-    text: `UPDATE players SET is_folded = TRUE WHERE game_id = $1 AND seat = $2`,
-    values: [game.id, seat]
+    text: `UPDATE players SET is_folded = TRUE WHERE id = $1`,
+    values: [playerId]
   }
   await pool.query(query);
 
   return await NextTurn(gameCode);
 }
 
-async function Check(gameCode, seat) {
+async function Check(gameCode, playerId) {
   // Get the game
   let query = {
     text: `SELECT * FROM games WHERE code = $1`,
@@ -403,23 +397,23 @@ async function Check(gameCode, seat) {
 
   // Check if player has enough balance to check
   query = {
-    text: `SELECT balance FROM players WHERE game_id = $1 AND seat = $2`,
-    values: [game.id, seat]
+    text: `SELECT balance FROM players WHERE id = $1`,
+    values: [playerId]
   }
   const playerBalance = await pool.query(query).then(res => res.rows[0].balance);
 
   if (playerBalance <= currentBet) {
     // All-in - Player can only bet the amount of their balance, a side pull must then be created
     query = {
-      text: `UPDATE players SET bet = bet + balance, balance = 0, hasGoneAllIn = TRUE WHERE game_id = $1 AND seat = $2`,
-      values: [game.id, seat]
+      text: `UPDATE players SET bet = bet + balance, balance = 0, hasGoneAllIn = TRUE WHERE id = $1`,
+      values: [playerId]
     }
     await pool.query(query);
   } else {
     // Check - update player's bet and balance to match current bet
     query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $1 WHERE game_id = $2 AND seat = $3`,
-      values: [currentBet, game.id, seat]
+      text: `UPDATE players SET bet = $1, balance = balance - $1 WHERE id = $2`,
+      values: [currentBet, playerId]
     }
     await pool.query(query);
   }
@@ -430,12 +424,14 @@ async function Check(gameCode, seat) {
 async function NextTurn(gameCode) {
   // Get the game
   let query = {
-    text: `SELECT current_turn_seat FROM games WHERE code = $1`,
+    text: `SELECT * FROM games WHERE code = $1`,
     values: [gameCode]
   }
-  const game = await pool.query(query).then(res => res.rows[0].current_turn_seat);
+  const game = await pool.query(query).then(res => res.rows[0]);
   // Determine the next turn seat
-  const nextTurnSeat = (game.current_turn_seat + 1) % (game.players_amount);
+  const nextTurnSeat = (Number(game.current_turn_seat) + 1) % Number(game.players_amount);
+  console.log(game);
+  console.log(`Next turn seat = ${game.current_turn_seat} + 1 mod ${game.players_amount} = ${nextTurnSeat}`);
 
   // Update the current turn seat in the game
   query = {
@@ -449,7 +445,7 @@ async function NextTurn(gameCode) {
 async function ResolvePots(gameId) {
   // Get players who didn't fold and have bet more than 0
   const players = (await pool.query(
-    `SELECT id, bet, "hasGoneAllIn", is_folded FROM players WHERE game_id = $1 AND bet > 0 ORDER BY bet ASC`,
+    `SELECT id, bet, hasGoneAllIn, is_folded FROM players WHERE game_id = $1 AND bet > 0 ORDER BY bet ASC`,
     [gameId]
   )).rows;
 
@@ -499,7 +495,7 @@ async function ResolvePots(gameId) {
 
 async function EndRoundIfCan(game) {
   // Get the players
-  query = {
+  let query = {
     text: `SELECT * FROM players WHERE game_id = $1`,
     values: [game.id]
   }

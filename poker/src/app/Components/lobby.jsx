@@ -34,14 +34,8 @@ export default function Lobby() {
     }
 
     const handleStart = async () => {
-        try {
-            const res = await axios.post("http://" + window.location.hostname + ":8080/startGame", {
-                code: code
-            });
-            router.push("/game");
-        } catch (error) {
-            console.error("Error starting game:", error);
-        }
+        socket.emit("start_game", code);
+        router.push("/game");
     }
 
     useEffect(() => {
