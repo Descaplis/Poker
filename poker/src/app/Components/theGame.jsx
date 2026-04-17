@@ -18,7 +18,7 @@ return (
         <div className="flex-1 flex flex-col items-center">
             {/* Gracze na górze (1 i 2) */}
             <div className="flex justify-evenly w-full max-w-2xl gap-4">
-              <Player name="Gracz 1" />
+              <Player name="Gracz 1"/>
               <Player name="Gracz 2" />
             </div>
 
@@ -26,18 +26,28 @@ return (
             <div className="w-full aspect-2/1 grow flex items-center justify-center p-2 md:p-4 mt-[4vh]">
                 <div className="aspect-2/1 w-full border-amber-900 border-4 lg:border-11 bg-radial-[at_35%_35%] from-gray-500 to-black rounded-[50px] lg:rounded-[80px] p-3 lg:p-6 shadow-2xl">
                     <div className="flex justify-center items-center w-full h-full bg-radial-[at_35%_35%] from-green-600 to-green-800 rounded-[40px] gap-3">
-                        <div className="w-25 h-35 bg-amber-600"></div>
-                        <div className="w-25 h-35 bg-amber-600"></div>
-                        <div className="w-25 h-35 bg-amber-600"></div>
-                        <div className="w-25 h-35 bg-amber-600"></div>
-                        <div className="w-25 h-35 bg-amber-600"></div>
+                        <div className="w-[5vw] h-[15vh]">
+                            <img src="/images/karty/BackCard.png"></img>
+                        </div>
+                        <div className="w-[5vw] h-[15vh]">
+                            <img src="/images/karty/BackCard.png"></img>
+                        </div>
+                        <div className="w-[5vw] h-[15vh]">
+                            <img src="/images/karty/BackCard.png"></img>
+                        </div>
+                        <div className="w-[5vw] h-[15vh]">
+                            <img src="/images/karty/BackCard.png"></img>
+                        </div>
+                        <div className="w-[5vw] h-[15vh]">
+                            <img src="/images/karty/BackCard.png"></img>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Gracze na dole (5 i 6) */}
             <div className="flex justify-evenly w-full max-w-2xl gap-4">
-                <Player name="Gracz 6" position="down"/>
+                <Player name="Gracz 6" position="down" cards={["3Pik", "queenKier"]}/>
                 <Player name="Gracz 5" position="down"/>
             </div>
       </div>
