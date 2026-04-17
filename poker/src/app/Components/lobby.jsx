@@ -28,14 +28,13 @@ export default function Lobby() {
     };
 
     const handleLeave = async () => {
-        socket.emit("leave_room", playerId);
+        socket.emit("leave_room", playerId, code);
         sessionStorage.clear();
         router.push("/");
     }
 
     const handleStart = async () => {
         socket.emit("start_game", code);
-        router.push("/game");
     }
 
     useEffect(() => {
@@ -50,13 +49,18 @@ export default function Lobby() {
     useEffect(() => {
         if (!code) return;
         if (!playerId) return;
+        console.log("Emitting auth event with playerId:", playerId);
         socket.emit("auth", playerId);
 
         socket.on("refresh_list", fetchPlayers);
+        socket.on("game_started", () => {
+            router.push("/game");
+        });
 
         return () => {
             console.log("cleaning up");
             socket.off("refresh_list", fetchPlayers);
+            socket.off("game_started");
         };
     }, [code, playerId]);
 

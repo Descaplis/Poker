@@ -33,6 +33,7 @@ const createWebsocketServer = (httpServer) => {
         }
 
         socket.on("auth", async (playerId) => {
+            console.log(`Received auth event for playerId: ${playerId}`);
             if (disconnectTimeouts[playerId]) {
                 console.log(`Player ${playerId} reconnected within the timeout period. Clearing disconnect timeout.`);
                 clearTimeout(disconnectTimeouts[playerId]);
@@ -40,10 +41,11 @@ const createWebsocketServer = (httpServer) => {
             }
 
             const user = await GetUserById(playerId);
+            console.log("User found: ", user);
 
             if (user) {
                 const game = await GetGameById(user.game_id);
-                console.log(`Player ${user.username} with id ${user.id} has connected to the websocket`);
+                console.log("Game found:", game);
                 // Assigning user data to the socket to use it later
                 socket.userData = {
                     playerId: user.id,
@@ -53,19 +55,19 @@ const createWebsocketServer = (httpServer) => {
                     isHost: user.ishost
                 };
                 userSessionStore.set(user.id, socket.userData);
-                socket.join(game.code);
+                console.log("User session stored: ", userSessionStore);
                 joinRoom(game.code);
             }
         });
 
-        socket.on("leave_room", async (playerId) => {
-            const code = userSessionStore.get(playerId).code;
+        socket.on("leave_room", async (playerId, code) => {
             await LeaveGame(playerId);
             io.to(code).emit("refresh_list");
         });
 
-        socket.on("start_game", async (playerId) => {
-            await startGame(playerId);
+        socket.on("start_game", async (code) => {
+            await startGame(code);
+            io.to(code).emit("game_started");
         });
 
         socket.on("move", async (moveData) => {

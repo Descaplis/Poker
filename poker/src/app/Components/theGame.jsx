@@ -66,7 +66,7 @@ export default function theGame() {
     });
 
     fetchData();
-    socket.emit("start_game", myId);
+    // now get the data for 
 
     return () => socket.off("timer_update");
   }, []);
