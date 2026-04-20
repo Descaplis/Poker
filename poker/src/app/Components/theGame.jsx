@@ -12,6 +12,10 @@ export default function theGame() {
   const [myCards, setMyCards] = useState([]);
   const [timerEndTime, setTimerEndTime] = useState();
   const [currentBet, setCurrentBet] = useState();
+  const [smallBlindSeat, setSmallBlindSeat] = useState();
+  const [bigBlindSeat, setBigBlindSeat] = useState();
+  const [cardsOnTable, setCardsOnTable] = useState([]);
+  const [currentTurnSeat, setCurrentTurnSeat] = useState();
   const myId = sessionStorage.getItem("playerId");
   const gameCode = sessionStorage.getItem("code");
 
@@ -46,8 +50,10 @@ export default function theGame() {
   }
 
   useEffect(() => {
-    const fetchData = async () => {
-      const res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
+    // start: players, small blind, big blind, current turn seat, timer
+    const fetchDataOnStart = async () => {
+      // players
+      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
         code: gameCode
       });
       const players = res.data.players;
@@ -58,17 +64,107 @@ export default function theGame() {
       myCards = convertCardNames(myCards);
       setMyCards(myCards);
       console.log(myCards);
+
+      // small blind seat
+      res = await axios.post("http://" + window.location.hostname + ":8080/getSmallBlindSeat", {
+        code: gameCode
+      });
+      setSmallBlindSeat(res.data.seat);
+
+      // big blind seat
+      res = await axios.post("http://" + window.location.hostname + ":8080/getBigBlindSeat", {
+        code: gameCode
+      });
+      setBigBlindSeat(res.data.seat);
+
+      // current turn seat
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
+        code: gameCode
+      });
+      setCurrentTurnSeat(res.data.seat);
+
+      // timer
+      const timeForMove = await axios.post("http://" + window.location.hostname + ":8080/getTimeForMove", {
+        code: gameCode
+      });
+      const endTime = Date.now() + timeForMove.data.time * 1000;
+      setTimerEndTime(endTime);
     };
 
-    socket.on("timer_update", (data) => {
-      console.log("Received timer update: ", data.endTime);
+    // every turn: players, current turn seat, current bet
+    const fetchDataOnTurn = async () => {
+      // get new list of players with updated balances and other things
+      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
+        code: gameCode
+      });
+      const players = res.data.players;
+      console.log(players);
+      setPlayers(players);
+
+      // current turn seat
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
+        code: gameCode
+      });
+      setCurrentTurnSeat(res.data.seat);
+
+      // current bet
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentBet", {
+        code: gameCode
+      });
+      setCurrentBet(res.data.currentBet);
+    };
+
+    // every round: players, current turn seat, current bet, cards on table
+    const fetchDataOnRound = async () => {
+      // get new list of players with updated balances and other things
+      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
+        code: gameCode
+      });
+      const players = res.data.players;
+      console.log(players);
+      setPlayers(players);
+
+      // current turn seat
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
+        code: gameCode
+      });
+      setCurrentTurnSeat(res.data.seat);
+
+      // current bet
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentBet", {
+        code: gameCode
+      });
+      setCurrentBet(res.data.currentBet);      
+      
+      // cards on table
+      res = await axios.post("http://" + window.location.hostname + ":8080/getCardsOnTable", {
+        code: gameCode
+      });
+      setCurrentBet(res.data.currentBet);
+    };
+
+    fetchDataOnStart();
+
+    socket.on("next_turn", (data) => {
+      console.log("Received next turn update", data.endTime);
+      fetchDataOnTurn();
       setTimerEndTime(data.endTime);
     });
 
-    fetchData();
-    // now get the data for 
+    socket.on("next_round", (data) => {
+      console.log("Receiverd next round update", data.endTime);
+      fetchDataOnRound();
+      setTimerEndTime(data.endTime);
+    })
 
-    return () => socket.off("timer_update");
+    fetchDataOnStart();
+    // now get all the data
+
+    return () => {
+      socket.off("next_turn");
+      socket.off("next_round");
+      socket.off("game_started");
+    };
   }, []);
 
   const handleMove = () => {
@@ -89,6 +185,7 @@ export default function theGame() {
         {/* Gracze po lewej (8 i 7) */}
         <div className="flex flex-col justify-around h-[60vh] md:h-[50vh]">
           {players.length > 6 && <Player name={players[6].username} balance={players[6].balance} cards={myId == players[6].id ? myCards : null}/>}
+
           {players.length > 7 && <Player name={players[7].username} balance={players[7].balance} cards={myId == players[7].id ? myCards : null}/>}
         </div>
 
@@ -97,6 +194,7 @@ export default function theGame() {
           {/* Gracze na górze (1 i 2) */}
           <div className="flex justify-evenly w-full max-w-2xl gap-4">
           {players.length > 0 && <Player name={players[0].username} balance={players[0].balance} cards={myId == players[0].id ? myCards : null}/>}
+
           {players.length > 1 && <Player name={players[1].username} balance={players[1].balance} cards={myId == players[1].id ? myCards : null}/>}
           </div>
 
@@ -112,6 +210,7 @@ export default function theGame() {
           {/* Gracze na dole (5 i 6) */}
           <div className="flex justify-evenly w-full max-w-2xl gap-4">
           {players.length > 5 && <Player name={players[5].username} balance={players[5].balance} cards={myId == players[5].id ? myCards : null}/>}
+
           {players.length > 4 && <Player name={players[4].username} balance={players[4].balance} cards={myId == players[4].id ? myCards : null}/>}
           </div>
         </div>
@@ -119,6 +218,7 @@ export default function theGame() {
         {/* Gracze po prawej (3 i 4) */}
         <div className="flex flex-col justify-around h-[60vh] md:h-[50vh]">
           {players.length > 2 && <Player name={players[2].username} balance={players[2].balance} cards={myId == players[2].id ? myCards : null}/>}
+
           {players.length > 3 && <Player name={players[3].username} balance={players[3].balance} cards={myId == players[3].id ? myCards : null}/>}
         </div>
       </div>

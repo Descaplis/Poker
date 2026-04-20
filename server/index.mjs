@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
@@ -42,42 +42,6 @@ app.post("/getListOfPlayers", async (req, res) => {
     res.json({players});
 });
 
-app.post("/raise", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null || req.body.amount  == null) {
-        res.json({success: false});
-        return;
-    }
-    const raise = await Raise(req.body.code, req.body.seat, req.body.amount);
-    res.json({raise})
-});
-
-app.post("/fold", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const fold = await Fold(req.body.code, req.body.seat);
-    res.json({fold})
-});
-
-app.post("/check", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const check = await Check(req.body.code, req.body.seat);
-    res.json({check})
-});
-
-app.post("/getPlayerCards", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const cards = await GetPlayerCards(req.body.code, req.body.seat);
-    res.json({cards})
-});
-
 app.post("/getCurrentTurnSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
@@ -87,7 +51,16 @@ app.post("/getCurrentTurnSeat", async (req, res) => {
     res.json({seat})
 });
 
-app.get("/getSmallBlindSeat", async (req, res) => {
+app.post("/getCurrentBet", async (req, res) => {
+    if (req.body.code == null || req.body.playerId == null) {
+        res.json({success: false});
+        return;
+    }
+    const currentBet = await GetCurrentBet(req.body.code, req.body.playerId);
+    res.json({currentBet});
+});
+
+app.post("/getSmallBlindSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
@@ -96,7 +69,7 @@ app.get("/getSmallBlindSeat", async (req, res) => {
     res.json({seat})
 });
 
-app.get("/getBigBlindSeat", async (req, res) => {
+app.post("/getBigBlindSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
@@ -105,7 +78,7 @@ app.get("/getBigBlindSeat", async (req, res) => {
     res.json({seat})
 });
 
-app.get("/getCardsOnTable", async (req, res) => {
+app.post("/getCardsOnTable", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
@@ -114,7 +87,16 @@ app.get("/getCardsOnTable", async (req, res) => {
     res.json({cards})
 });
 
-app.get("/getMaximumRaiseValue", async (req, res) => {
+app.post("/getTimeForMove", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const time = await GetTimeForMove(req.body.code);
+    res.json({time})
+});
+
+app.post("/getMaximumRaiseValue", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;

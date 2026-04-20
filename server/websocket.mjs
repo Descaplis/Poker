@@ -23,10 +23,11 @@ const createWebsocketServer = (httpServer) => {
             if (userData) {
                 socket.join(userData.code);
                 console.log("found socket userdata");
-                const timeForMove = await GetTimeForMove(userData.gameId);
+                const timeForMove = await GetTimeForMove(userData.code);
                 const endTime = Date.now() + timeForMove * 1000;
+
                 console.log(`Emitting timer update to room ${userData.code} with end time ${endTime}`);
-                io.to(userData.code).emit("timer_update", {endTime: endTime});
+                io.to(userData.code).emit("next_turn", {endTime: endTime});
             } else {
                 console.log("cant find socket userdata");
             }
