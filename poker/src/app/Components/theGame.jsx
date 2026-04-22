@@ -5,9 +5,10 @@ import { io } from "socket.io-client";
 import axios from "axios";
 import Timer from "./elements/timer";
 
-const socket = io("http://" + window.location.hostname + ":8080");
+
 
 export default function theGame() {
+  const [socket, setSocket] = useState(null);
   const [players, setPlayers] = useState([]);
   const [myCards, setMyCards] = useState([]);
   const [timerEndTime, setTimerEndTime] = useState();
@@ -16,8 +17,10 @@ export default function theGame() {
   const [bigBlindSeat, setBigBlindSeat] = useState();
   const [cardsOnTable, setCardsOnTable] = useState([]);
   const [currentTurnSeat, setCurrentTurnSeat] = useState();
+  console.log(sessionStorage);
   const myId = sessionStorage.getItem("playerId");
   const gameCode = sessionStorage.getItem("code");
+
 
   const convertCardNames = (myCards) => {
     myCards = myCards.map((card) => {
@@ -49,13 +52,24 @@ export default function theGame() {
     return myCards;
   }
 
+
+  // useEffect for setting up socket.io
   useEffect(() => {
+    const socketConn = io("http://" + window.location.hostname + ":8080");
+    setSocket(socketConn);
+  }, []);
+  
+  // useEffect for setting up socket listeners and fetching initial data
+  useEffect(() => {
+    if (socket == null) return;
     // start: players, small blind, big blind, current turn seat, timer
     const fetchDataOnStart = async () => {
       // players
       let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
         code: gameCode
       });
+      console.log(gameCode)
+      console.log(res)
       const players = res.data.players;
       console.log(players);
       setPlayers(players);
@@ -140,7 +154,7 @@ export default function theGame() {
       res = await axios.post("http://" + window.location.hostname + ":8080/getCardsOnTable", {
         code: gameCode
       });
-      setCurrentBet(res.data.currentBet);
+      setCardsOnTable(res.data.currentBet);
     };
 
     fetchDataOnStart();
@@ -163,9 +177,8 @@ export default function theGame() {
     return () => {
       socket.off("next_turn");
       socket.off("next_round");
-      socket.off("game_started");
     };
-  }, []);
+  }, [socket]);
 
   const handleMove = () => {
     socket.emit("move", {

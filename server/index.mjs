@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
@@ -97,11 +97,11 @@ app.post("/getTimeForMove", async (req, res) => {
 });
 
 app.post("/getMaximumRaiseValue", async (req, res) => {
-    if (req.body.code == null) {
+    if (req.body.playerId == null) {
         res.json({success: false});
         return;
     }
-    const maxRaise = await GetMaximumRaiseValue(req.body.code);
+    const maxRaise = await GetMaximumRaiseValue(req.body.playerId);
     res.json({maxRaise});
 });
 

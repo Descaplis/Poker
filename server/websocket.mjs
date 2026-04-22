@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
+import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
 
 const createWebsocketServer = (httpServer) => {
     const io = new Server(httpServer, {
@@ -9,45 +9,82 @@ const createWebsocketServer = (httpServer) => {
     });
     const disconnectTimeouts = {};
     const userSessionStore = new Map();
+    const autoCheckTimeouts = {};
+
+    const nextTurn = async (code) => {
+        const timeForMove = await GetTimeForMove(code);
+        const endTime = Date.now() + timeForMove * 1000;
+
+        if (autoCheckTimeouts[code]) {
+            clearTimeout(autoCheckTimeouts[code]);
+        }
+
+        console.log(`Emitting timer update to room ${code} with end time ${endTime}`);
+        io.to(code).emit("next_turn", {endTime});
+
+        const seatAtStart = await GetCurrentTurnSeat(code);
+
+        autoCheckTimeouts[code] = setTimeout(async () => {
+            const currentSeat = await GetCurrentTurnSeat(code);
+            if (currentSeat == seatAtStart) {
+                const players = await GetListOfPlayers(code);
+                const currentPlayer = players.find(p => p.seat == currentSeat);
+                if (currentPlayer) {
+                    try {
+                        await Fold(code, currentPlayer.id);
+                        nextTurn(code);
+                    } catch (e) {
+                        console.error("Auto-check failed", e);
+                    }
+                }
+            }
+        }, timeForMove * 1000);
+    }
+
+    const handleMoveResult = async (res, code) => {
+        if (!res) {
+            await nextTurn(code);
+            return;
+        }
+
+        if (res.roundFinished) {
+            // Sprawdź czy gra się skończyła (DetermineWinner zwraca winners)
+            if (res.winners) {
+                console.log("Game over! Winners:", res.winners);
+                io.to(code).emit("game_over", {
+                    winners: res.winners.map(w => ({
+                        username: w.player?.username || w.username,
+                        id: w.player?.id || w.id,
+                        rank: w.hand?.name
+                    }))
+                });
+            } else {
+                // Nowa runda
+                io.to(code).emit("next_round");
+                await nextTurn(code);
+            }
+        } else {
+            await nextTurn(code);
+        }
+    }
 
     io.on("connection", (socket) => {
         const joinRoom = (code) => {
             socket.join(code);
-            console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} joined the room ${code}`);
+            console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} joined room ${code}`);
             io.to(code).emit("refresh_list");
-        }
-
-        const nextTurn = async (playerId) => {
-            const userData = userSessionStore.get(playerId);
-            console.log(userData);
-            if (userData) {
-                socket.join(userData.code);
-                console.log("found socket userdata");
-                const timeForMove = await GetTimeForMove(userData.code);
-                const endTime = Date.now() + timeForMove * 1000;
-
-                console.log(`Emitting timer update to room ${userData.code} with end time ${endTime}`);
-                io.to(userData.code).emit("next_turn", {endTime: endTime});
-            } else {
-                console.log("cant find socket userdata");
-            }
         }
 
         socket.on("auth", async (playerId) => {
             console.log(`Received auth event for playerId: ${playerId}`);
             if (disconnectTimeouts[playerId]) {
-                console.log(`Player ${playerId} reconnected within the timeout period. Clearing disconnect timeout.`);
                 clearTimeout(disconnectTimeouts[playerId]);
                 delete disconnectTimeouts[playerId];
             }
 
             const user = await GetUserById(playerId);
-            console.log("User found: ", user);
-
             if (user) {
                 const game = await GetGameById(user.game_id);
-                console.log("Game found:", game);
-                // Assigning user data to the socket to use it later
                 socket.userData = {
                     playerId: user.id,
                     username: user.username,
@@ -69,6 +106,7 @@ const createWebsocketServer = (httpServer) => {
         socket.on("start_game", async (code) => {
             await startGame(code);
             io.to(code).emit("game_started");
+            await nextTurn(code);
         });
 
         socket.on("move", async (moveData) => {
@@ -88,13 +126,19 @@ const createWebsocketServer = (httpServer) => {
                     console.log(res);
                     break;
             }
-            nextTurn(moveData.playerId);
+
+            io.to(moveData.gameCode).emit("player_moved", {
+                playerId: moveData.playerId,
+                action: moveData.action,
+                raiseValue: moveData.raiseValue
+            });
+
+            await handleMoveResult(res, moveData.gameCode);
         });
 
         socket.on("disconnect", async () => {
             console.log("A user disconnected");
             if (socket.userData) {
-                console.log("User data found on disconnect:", socket.userData);
                 console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} has disconnected from the websocket. Waiting 5 seconds before removing from the game...`);
 
                 disconnectTimeouts[socket.userData.playerId] = setTimeout(async () => {
