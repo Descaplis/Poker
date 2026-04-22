@@ -17,6 +17,8 @@ export default function theGame() {
   const [bigBlindSeat, setBigBlindSeat] = useState();
   const [cardsOnTable, setCardsOnTable] = useState([]);
   const [currentTurnSeat, setCurrentTurnSeat] = useState();
+  const [pots, setPots] = useState([]);
+  const [gameOverData, setGameOverData] = useState(null);
   console.log(sessionStorage);
   const myId = sessionStorage.getItem("playerId");
   const gameCode = sessionStorage.getItem("code");
@@ -52,6 +54,29 @@ export default function theGame() {
     return myCards;
   }
 
+  const fetchAll = useCallback(async () => {
+    if (!gameCode) return;
+    try {
+      const base = `http://${window.location.hostname}:8080`;
+
+      const [rPlayers, rSeat, rBet, rCards, rPots] = await Promise.all([
+        axios.post(`${base}/getListOfPlayers`, { code: gameCode }),
+        axios.post(`${base}/getCurrentTurnSeat`, { code: gameCode }),
+        axios.post(`${base}/getCurrentBet`, { code: gameCode }),
+        axios.post(`${base}/getCardsOnTable`, { code: gameCode }),
+        axios.post(`${base}/getPots`, { code: gameCode }),
+      ]);
+
+      setPlayers(rPlayers.data.players ?? []);
+      setCurrentTurnSeat(rSeat.data.seat);
+      setCurrentBet(rBet.data.currentBet ?? 0);
+      setCardsOnTable(rCards.data.cards ?? []);
+      setPots(rPots.data.pots ?? []);
+    } catch (e) {
+      console.error('fetchAll error', e);
+    }
+  }, [gameCode]);
+
 
   // useEffect for setting up socket.io
   useEffect(() => {
@@ -62,132 +87,43 @@ export default function theGame() {
   // useEffect for setting up socket listeners and fetching initial data
   useEffect(() => {
     if (socket == null) return;
-    // start: players, small blind, big blind, current turn seat, timer
-    const fetchDataOnStart = async () => {
-      // players
-      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
-        code: gameCode
-      });
-      console.log(gameCode)
-      console.log(res)
-      const players = res.data.players;
-      console.log(players);
-      setPlayers(players);
 
-      let myCards = players.filter((player) => player.id == myId)[0].cards;
-      myCards = convertCardNames(myCards);
-      setMyCards(myCards);
-      console.log(myCards);
-
-      // small blind seat
-      res = await axios.post("http://" + window.location.hostname + ":8080/getSmallBlindSeat", {
-        code: gameCode
-      });
-      setSmallBlindSeat(res.data.seat);
-
-      // big blind seat
-      res = await axios.post("http://" + window.location.hostname + ":8080/getBigBlindSeat", {
-        code: gameCode
-      });
-      setBigBlindSeat(res.data.seat);
-
-      // current turn seat
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
-        code: gameCode
-      });
-      setCurrentTurnSeat(res.data.seat);
-
-      // timer
-      const timeForMove = await axios.post("http://" + window.location.hostname + ":8080/getTimeForMove", {
-        code: gameCode
-      });
-      const endTime = Date.now() + timeForMove.data.time * 1000;
-      setTimerEndTime(endTime);
-    };
-
-    // every turn: players, current turn seat, current bet
-    const fetchDataOnTurn = async () => {
-      // get new list of players with updated balances and other things
-      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
-        code: gameCode
-      });
-      const players = res.data.players;
-      console.log(players);
-      setPlayers(players);
-
-      // current turn seat
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
-        code: gameCode
-      });
-      setCurrentTurnSeat(res.data.seat);
-
-      // current bet
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentBet", {
-        code: gameCode
-      });
-      setCurrentBet(res.data.currentBet);
-    };
-
-    // every round: players, current turn seat, current bet, cards on table
-    const fetchDataOnRound = async () => {
-      // get new list of players with updated balances and other things
-      let res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
-        code: gameCode
-      });
-      const players = res.data.players;
-      console.log(players);
-      setPlayers(players);
-
-      // current turn seat
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentTurnSeat", {
-        code: gameCode
-      });
-      setCurrentTurnSeat(res.data.seat);
-
-      // current bet
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCurrentBet", {
-        code: gameCode
-      });
-      setCurrentBet(res.data.currentBet);      
-      
-      // cards on table
-      res = await axios.post("http://" + window.location.hostname + ":8080/getCardsOnTable", {
-        code: gameCode
-      });
-      setCardsOnTable(res.data.currentBet);
-    };
-
-    fetchDataOnStart();
-
-    socket.on("next_turn", (data) => {
-      console.log("Received next turn update", data.endTime);
-      fetchDataOnTurn();
+    socket.on("next_turn", async (data) => {
+      console.log(`Następna tura, timer: ${data.endTime}`);
       setTimerEndTime(data.endTime);
+      await fetchAll();
     });
 
-    socket.on("next_round", (data) => {
-      console.log("Receiverd next round update", data.endTime);
-      fetchDataOnRound();
-      setTimerEndTime(data.endTime);
-    })
+    socket.on("next_round", async () => {
+      console.log('Nowa runda — karty na stole aktualizowane');
+      await fetchAll();
+    });
 
-    fetchDataOnStart();
-    // now get all the data
+    socket.on("player_moved", (data) => {
+      console.log(`Gracz ${data.playerId} wykonał: ${data.action}${data.raiseValue ? ` (${data.raiseValue})` : ''}`);
+    });
+
+    socket.on("game_over", (data) => {
+      console.log(`Koniec gry! Zwycięzcy: ${data.winners.map(w => w.username).join(', ')}`);
+      setGameOverData(data);
+      fetchAll();
+    });
+
+    socket.on("refresh_list", fetchAll);
+
+    // First fetch
+    fetchAll();
 
     return () => {
-      socket.off("next_turn");
-      socket.off("next_round");
+      socket.disconnect();
     };
   }, [socket]);
 
-  const handleMove = () => {
-    socket.emit("move", {
-      action: "raise",
-      raiseValue: 5,
-      playerId: myId,
-      gameCode: gameCode
-    });
-  }
+  const handleMove = useCallback((action, raiseValue) => {
+    if (!socket || !myId || !gameCode) return;
+    addLog(`Wysyłam ruch: ${action}${raiseValue ? ` (${raiseValue})` : ''}`);
+    socket.emit("move", { action, gameCode, playerId: myId, raiseValue });
+  }, [socket, myId, gameCode]);
 
   return (
     <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 flex items-center justify-center p-4">

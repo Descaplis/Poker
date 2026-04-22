@@ -10,10 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(cors({origin:[ "http://localhost:3000", "http://192.168.88.14:3000"]}));
 
-app.get("/",(req, res) => {
-    res.json({message: "Test"});
-});
-
 app.post("/createGame", async (req, res) => {
     console.log(req.body)
     if (req.body.playersAmount == null || req.body.timeForMove == null || req.body.smallBlindValue == null ||  req.body.initialBalance == null || req.body.username == null) {
@@ -48,7 +44,7 @@ app.post("/getCurrentTurnSeat", async (req, res) => {
         return;
     }
     const seat = await GetCurrentTurnSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
 app.post("/getCurrentBet", async (req, res) => {
@@ -66,7 +62,7 @@ app.post("/getSmallBlindSeat", async (req, res) => {
         return;
     }
     const seat = await GetSmallBlindSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
 app.post("/getBigBlindSeat", async (req, res) => {
@@ -75,7 +71,7 @@ app.post("/getBigBlindSeat", async (req, res) => {
         return;
     }
     const seat = await GetBigBlindSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
 app.post("/getCardsOnTable", async (req, res) => {
@@ -84,7 +80,7 @@ app.post("/getCardsOnTable", async (req, res) => {
         return;
     }
     const cards = await GetCardsOnTable(req.body.code);
-    res.json({cards})
+    res.json({cards});
 });
 
 app.post("/getTimeForMove", async (req, res) => {
@@ -93,7 +89,7 @@ app.post("/getTimeForMove", async (req, res) => {
         return;
     }
     const time = await GetTimeForMove(req.body.code);
-    res.json({time})
+    res.json({time});
 });
 
 app.post("/getMaximumRaiseValue", async (req, res) => {

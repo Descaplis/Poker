@@ -587,7 +587,7 @@ async function DetermineWinner(game) {
     }
     const pots = await client.query(query).then(res => res.rows);    
     
-    let query = {
+    query = {
       text: `SELECT * FROM games WHERE id = $1`,
       values: [game.id]
     }
@@ -686,6 +686,14 @@ async function GetCurrentTurnSeat(gameCode) {
   return await pool.query(query).then(res => res.rows[0].current_turn_seat);
 }
 
+async function GetCurrentBet(gameCode) {
+  let query = {
+    text: `SELECT current_bet FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  return await pool.query(query).then(res => res.rows[0].current_bet);
+}
+
 async function GetTimeForMove(gameCode) {
   let query = {
     text: `SELECT time_for_move FROM games WHERE code = $1`,
@@ -761,4 +769,4 @@ async function GetPots(gameCode) {
   return pots;
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove };
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove };
