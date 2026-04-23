@@ -1,27 +1,51 @@
-export default function Player({ name, position, cards }) {
+import Image from "next/image";
+
+export default function Player({ name, position, cards, balance, endTime, isAllIn, blind, isFolded}) {
     return (
         <div>
-            {position == 'down' ? (
-                    <div className="w-75 h-35 bg-radial-[at_35%_35%] from-gray-700 to-gray-900 to-75% rounded-full border-4 relative border-red-700 p-2">
-                        <div className="flex justify-center absolute -top-25 left-0 right-0">
-                            <div className="w-20 h-27 bg-amber-600 transform-cpu rotate-348"></div>
-                            <div className="w-20 h-27 bg-amber-600 transform-cpu rotate-12"></div>
-                        </div>
-                        <h1 className="text-white text-2xl font-black text-center m-auto pointer-events-none">{name}</h1>
-                        <h1 className="text-white text-lg font-black text-center pointer-events-none">Stan: $1000</h1>
-                        <h1 className="text-white text-xl font-black text-center mt-1 pointer-events-none">30s</h1>
+            <div className={`w-[16vw] h-[15vh] ${isAllIn ? 'bg-radial-[at_50%_35%] from-amber-400 via-amber-600 to-amber-700 to-75%' : 
+                'bg-radial-[at_35%_35%] from-gray-700 to-gray-900 to-75%'} rounded-full border-4 relative ${isFolded ? 'border-black' : 'border-red-700'} p-2
+                ${balance == 0 && !isAllIn && 'opacity-50'}`}>
+                <div className={`flex justify-center absolute ${position == 'down' ? '-top-25 left-0 right-0' :
+                    position == 'left' ? 'top-0 left-0 -right-85' :
+                    position == 'right' ? 'top-0 -left-85 right-0' : 'top-25 left-0 right-0'}`}>
+                    <div className="w-[4.3vw] h-[12vh] transform-cpu rotate-348">
+                        {
+                            cards ? 
+                            <Image src={`/images/karty/${cards[0]}.png`} fill alt="card1"/>
+                            :
+                            <Image src="/images/karty/BackCard.png" fill alt="card1"/>
+                        }
                     </div>
-                ) :          
-                <div className="w-75 h-35 bg-radial-[at_35%_35%] from-gray-700 to-gray-900 to-75% rounded-full border-4 border-red-700 p-2">
-                    <h1 className="text-white text-2xl font-black text-center m-auto pointer-events-none">{name}</h1>
-                    <h1 className="text-white text-lg font-black text-center pointer-events-none">Stan: $1000</h1>
-                    <h1 className="text-white text-xl font-black text-center mt-1 pointer-events-none">30s</h1>
-                    <div className="flex relative justify-center">
-                        <div className="w-20 h-27 bg-amber-600 transform-cpu rotate-348"></div>
-                        <div className="w-20 h-27 bg-amber-600 transform-cpu rotate-12"></div>
+                    <div className="w-[4.3vw] h-[12vh] transform-cpu rotate-12">
+                        {
+                            cards ? 
+                            <Image src={`/images/karty/${cards[1]}.png`} fill alt="card2"/>
+                            :
+                            <Image src="/images/karty/BackCard.png" fill alt="card2"/>
+                        }
                     </div>
                 </div>
-            }
+                <div className={`${position != 'down' || position != 'right' || position != 'left' ? '' : 'relative top-25 left-0 right-0'}`}>
+                    <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-2xl font-black text-center m-auto pointer-events-none`}>{name}</h1>
+                    <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-lg font-black text-center pointer-events-none`}>Stan: ${balance}</h1>
+                    <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-xl font-black text-center mt-1 pointer-events-none`}>30s</h1>
+                    <div className={`${position == 'right' && 'relative'}`}>
+                        {
+                            blind == 'small' ? (
+                                <div className="w-[2vw] h-[3.9vh] bg-black rounded-full flex justify-center items-center-safe border-amber-50 border-2">
+                                    <h2 className="text-white font-black">S</h2>
+                                </div>
+                            ) : blind == 'big' ? (
+                                <div className="w-[2vw] h-[3.9vh] bg-black rounded-full flex justify-center items-center-safe border-amber-50 border-2">
+                                    <h2 className="text-white font-black cursor-default">B</h2>
+                                </div>
+                            ) :
+                            <div></div>
+                        }
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

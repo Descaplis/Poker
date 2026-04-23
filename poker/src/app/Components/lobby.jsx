@@ -79,7 +79,7 @@ export default function Lobby() {
                         </div>
                         <div>
                             <button type="button" onClick={handleLeave}
-                            className="text-gray-200 bg-gradient-to-r from-rose-500 via-red-700 to-red-800 
+                            className="text-gray-200 bg-gradient-to-r from-rose-500 via-red-700 to-red-800
                                 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-500 dark:focus:ring-red-800 
                                 shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 rounded-base text-center
                                 w-100 p-4 m-3 border-4 border-black self-start rounded-xl text-5xl font-black cursor-pointer">Wyjdź</button>
