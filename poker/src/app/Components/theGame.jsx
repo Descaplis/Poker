@@ -134,18 +134,6 @@ export default function theGame() {
     socket.emit("move", { action, gameCode, playerId: myId, raiseValue });
   }, [socket, myId, gameCode]);
 
-  return (
-    <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-sky-200 via-blue-400 to-indigo-900 flex items-center justify-center p-4">
-      <Timer endTime={timerEndTime}/>
-      <button onClick={handleMove} className="bg-amber-800 text-white">Next turn</button>
-      {/* Główny kontener gry */}
-      <div className="relative w-11/12 flex items-center justify-center">
-        {/* Gracze po lewej (8 i 7) */}
-        <div className="flex flex-col justify-around h-[60vh] md:h-[50vh]">
-          {players.length > 6 && <Player name={players[6].username} balance={players[6].balance} cards={myId == players[6].id ? myCards : null}/>}
-
-          {players.length > 7 && <Player name={players[7].username} balance={players[7].balance} cards={myId == players[7].id ? myCards : null}/>}
-        </div>
 	return (
 		<div className="min-h-screen w-full bg-radial-[at_50%_55%] from-gray-400 from-20% via-gray-600 via-55% to-gray-900 flex items-center justify-center p-4 relative">
 			{/* Główny kontener gry */}
