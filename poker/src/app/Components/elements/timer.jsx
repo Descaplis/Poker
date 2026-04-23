@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function Timer({endTime}) {
+export default function Timer({endTime, isFolded}) {
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
@@ -18,6 +18,6 @@ export default function Timer({endTime}) {
   }, [endTime]);
 
   return (
-    <h1 className="text-white text-xl font-black text-center mt-1">{timeLeft}</h1>
+    <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-xl font-black text-center mt-1 pointer-events-none`}>{timeLeft}</h1>
   );
 };

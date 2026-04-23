@@ -413,7 +413,7 @@ async function Check(gameCode, playerId) {
     await pool.query();
   } else {
     const difference = currentBet - playerBet;
-    if (playerBalance <= diff) {
+    if (playerBalance <= difference) {
       // All in
       query = {
         text: `UPDATE players SET bet = bet + balance, balance = 0, hasGoneAllIn = TRUE, last_move = 'allin' WHERE id = $1`,
@@ -423,8 +423,8 @@ async function Check(gameCode, playerId) {
     } else {
       // Call
       query = {
-        text: `UPDATE players SET bet = $1, balance = balance - $2, last_move = 'call' WHERE id = $2`,
-        values: [currentBet, diff, playerId]
+        text: `UPDATE players SET bet = $1, balance = balance - $2, last_move = 'call' WHERE id = $3`,
+        values: [currentBet, difference, playerId]
       }
       await pool.query(query);
     }
@@ -452,9 +452,9 @@ async function NextTurn(gameCode) {
 
   let checked = 0;
   while (checked < game.players_amount) {
-    const candidate = players.find(p => p.seat === nextSeat);
+    const candidate = players.find(p => p.seat === nextTurnSeat);
     if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn) break;
-    nextSeat = (nextSeat + 1) % Number(game.players_amount);
+    nextTurnSeat = (nextTurnSeat + 1) % Number(game.players_amount);
     checked++;
   }
 

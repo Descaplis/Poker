@@ -3,7 +3,7 @@ import Player from "./elements/Player";
 import RaiseBtn from "./elements/RaiseBtn";
 import FoldBtn from "./elements/FoldBtn";
 import AllInBtn from "./elements/AllInBtn";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import Timer from "./elements/timer";
