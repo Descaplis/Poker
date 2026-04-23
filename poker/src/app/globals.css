@@ -27,6 +27,13 @@
       transform: (--bg-pos: 75%;);
     }
   }
+
+  --animate-popup: anim-pop 0.4s ease-in-out;
+
+  @keyframes anim-pop {
+    from {top: -300px; opacity: 0;}
+    to {top: 0; opacity: 1;}
+  }
 }
 
 @property --bg-pos {
