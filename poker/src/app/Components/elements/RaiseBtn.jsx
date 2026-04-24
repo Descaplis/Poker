@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useEffect } from "react";
 
-export default function RaiseBtn({show}){
+export default function RaiseBtn({show, minRaise, maxRaise, raiseAmount ,setRaiseAmount}){
     if(!show) return;
 
     const modal = useRef();
@@ -34,7 +34,8 @@ export default function RaiseBtn({show}){
                 <div className="relative flex flex-col bg-radial-[at_20%_25%] from-amber-500 via-orange-400 via-45% to-yellow-300 to-90%
                     m-auto p-[1%] border border-black w-[20vw] shadow-xl/30 rounded-b-2xl animate-popup">
                     <label className="font-black text-lg">O ile chcesz podbić:</label>
-                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl" min={0}/>
+                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl" min={minRaise} max={maxRaise} value={raiseAmount}
+                     onChange={(e) => setRaiseAmount(Math.min(maxRaise, Math.max(minRaise, Number(e.target.value))))}/>
                     <button className="mx-auto mt-4 bg-amber-800 p-2 w-[10vw] text-white font-bold rounded-xl cursor-pointer">Potwierdź</button>
                 </div>
             </div>
