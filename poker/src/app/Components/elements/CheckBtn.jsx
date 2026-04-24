@@ -1,4 +1,4 @@
-export default function CheckBtn({show}){
+export default function CheckBtn({show, onClick}){
     if(!show) return;
     return (
         <div className="">

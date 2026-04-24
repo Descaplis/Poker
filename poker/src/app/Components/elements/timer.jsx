@@ -7,7 +7,7 @@ export default function Timer({endTime, isFolded}) {
   useEffect(() => {
     if (!endTime) return;
     const calculateTime = () => {
-      const difference = new Date(endTime) - Date.now();
+      const difference = new Date(Number(endTime)) - Date.now();
       const seconds = Math.max(0, Math.floor(difference / 1000));
       setTimeLeft(seconds);
     };

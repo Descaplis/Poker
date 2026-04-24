@@ -1,14 +1,15 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove, GetPots, GetTurnEndTime } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
+export const allowedOrigins = ["http://localhost:3000", "http://192.168.88.14:3000", "http://192.168.88.29:3000"];
 
 const app = express();
 app.use(express.json());
-app.use(cors({origin:[ "http://localhost:3000", "http://192.168.88.14:3000"]}));
+app.use(cors({origin:allowedOrigins}));
 
 app.post("/createGame", async (req, res) => {
     console.log(req.body)
@@ -99,6 +100,24 @@ app.post("/getMaximumRaiseValue", async (req, res) => {
     }
     const maxRaise = await GetMaximumRaiseValue(req.body.playerId);
     res.json({maxRaise});
+});
+
+app.post("/getPots", async (req, res) => {
+    if (req.body.playerId == null) {
+        res.json({success: false});
+        return;
+    }
+    const pots = await GetPots(req.body.code);
+    res.json({pots});
+});
+
+app.post("/getTurnEndTime", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const endTime = await GetTurnEndTime(req.body.code);
+    res.json({endTime});
 });
 
 const httpServer = createServer(app);

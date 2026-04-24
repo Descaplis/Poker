@@ -1,10 +1,11 @@
 import { Server } from "socket.io";
 import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
+import { allowedOrigins } from "./index.mjs";
 
 const createWebsocketServer = (httpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: ["http://localhost:3000", "http://192.168.88.14:3000"],
+            origin: allowedOrigins,
         }
     });
     const disconnectTimeouts = {};
@@ -105,8 +106,8 @@ const createWebsocketServer = (httpServer) => {
 
         socket.on("start_game", async (code) => {
             await startGame(code);
-            io.to(code).emit("game_started");
             await nextTurn(code);
+            io.to(code).emit("game_started");
         });
 
         socket.on("move", async (moveData) => {

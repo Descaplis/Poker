@@ -75,7 +75,8 @@ async function CreateGamesTable() {
   cards_on_table VARCHAR(2)[],
   small_blind_seat INT,
   big_blind_seat INT,
-  current_turn_seat INT
+  current_turn_seat INT,
+  turn_end_time BIGINT
   )`;
   return await pool.query(query);
 }
@@ -292,13 +293,11 @@ async function PutCardsOnTable(gameCode, amount) {
 }
 
 async function updateSeats(gameCode) {
-  console.log(`Updating seats for game with code ${gameCode}...`);
   let query = {
     text: `SELECT * FROM games WHERE code = $1`,
     values: [gameCode]
   }
   const game = await pool.query(query).then(res => res.rows[0]);
-  console.log("Game:", game);
   query = {
     text: 
     `UPDATE players
@@ -321,6 +320,19 @@ async function startGame(gameCode) {
   await updateSeats(gameCode);
   await GiveCardsToPlayers(gameCode);
   await BetBlinds(gameCode);
+  
+  // Set first turn to player after big blind
+  const game = await pool.query(
+    `SELECT * FROM games WHERE code = $1`, [gameCode]
+  ).then(res => res.rows[0]);
+  
+  const firstTurnSeat = (Number(game.big_blind_seat) + 1) % Number(game.players_amount);
+  const turnEndTime = Date.now() + game.time_for_move * 1000;
+
+  await pool.query(
+    `UPDATE games SET current_turn_seat = $1, turn_end_time = $2 WHERE id = $3`,
+    [firstTurnSeat, turnEndTime, game.id]
+  );
   // wait for players to make their moves, then put cards on table and so on
 }
 
@@ -543,9 +555,10 @@ async function EndRoundIfCan(game) {
 
     const nextSmallBlindSeat = (Number(freshGame.small_blind_seat) + 1) % Number(freshGame.players_amount);
     const nextBigBlindSeat = (Number(freshGame.big_blind_seat) + 1) % Number(freshGame.players_amount);
+    const nextFirstTurnSeat = (nextBigBlindSeat + 1) % Number(freshGame.players_amount);
     query = {
-      text: `UPDATE games SET current_bet = 0, current_turn_seat = $1, small_blind_seat = $1, big_blind_seat = $2 WHERE id = $3`,
-      values: [nextSmallBlindSeat, nextBigBlindSeat, game.id]
+      text: `UPDATE games SET current_bet = 0, current_turn_seat = $1, small_blind_seat = $2, big_blind_seat = $3 WHERE id = $4`,
+      values: [nextFirstTurnSeat, nextSmallBlindSeat, nextBigBlindSeat, game.id]
     }
     await pool.query(query);
 
@@ -769,4 +782,12 @@ async function GetPots(gameCode) {
   return pots;
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove };
+async function GetTurnEndTime(gameCode) {
+  let query = {
+    text: `SELECT turn_end_time FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  return await pool.query(query).then(res => res.rows[0].turn_end_time);
+}
+
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime };

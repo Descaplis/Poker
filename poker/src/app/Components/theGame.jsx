@@ -78,7 +78,7 @@ export default function theGame() {
     try {
       const base = `http://${window.location.hostname}:8080`;
 
-      const [rPlayers, rSeat, rBet, rCards, rPots, rSmall, rBig] = await Promise.all([
+      const [rPlayers, rSeat, rBet, rCards, rPots, rSmall, rBig, rEndTime] = await Promise.all([
         axios.post(`${base}/getListOfPlayers`,   { code: gameCode }),
         axios.post(`${base}/getCurrentTurnSeat`, { code: gameCode }),
         axios.post(`${base}/getCurrentBet`,      { code: gameCode }),
@@ -86,6 +86,7 @@ export default function theGame() {
         axios.post(`${base}/getPots`,            { code: gameCode }),
         axios.post(`${base}/getSmallBlindSeat`,  { code: gameCode }),
         axios.post(`${base}/getBigBlindSeat`,    { code: gameCode }),
+        axios.post(`${base}/getTurnEndTime`,    { code: gameCode }),
       ]);
 
       setPlayers(rPlayers.data.players ?? []);
@@ -95,6 +96,7 @@ export default function theGame() {
       setPots(rPots.data.pots ?? []);
       setSmallBlindSeat(rSmall.data.seat);
       setBigBlindSeat(rBig.data.seat);
+      setTimerEndTime(rEndTime.data.endTime ?? undefined);
     } catch (e) {
       console.error('fetchAll error', e);
     }
@@ -113,7 +115,6 @@ export default function theGame() {
 
     socket.on("next_turn", async (data) => {
       console.log(`[WS] next_turn — timer kończy się: ${new Date(data.endTime).toLocaleTimeString()}`);
-      setTimerEndTime(data.endTime);
       await fetchAll();
     });
 
@@ -145,9 +146,8 @@ export default function theGame() {
 
   const handleMove = useCallback((action, raiseValue) => {
     if (!socket || !myId || !gameCode) return;
-    addLog(`Wysyłam ruch: ${action}${raiseValue ? ` (${raiseValue})` : ''}`);
+    console.log(`Wysyłam ruch: ${action}${raiseValue ? ` (${raiseValue})` : ''}`);
     socket.emit("move", { action, gameCode, playerId: myId, raiseValue });
-    setShowRaisePanel(false);
   }, [socket, myId, gameCode]);
 
   const getPlayerAtSeat = (seat) => players.find((p) => p.seat === seat) ?? null;
@@ -176,6 +176,7 @@ export default function theGame() {
       cards = convertCardNames(player.cards);
     }
 
+    console.log(`Seat ${seat} isCurrentTurn: ${isCurrentTurn}, endTime: ${timerEndTime}`)
     return {
       name: player.username,
       position: position,

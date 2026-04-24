@@ -2,8 +2,6 @@
 import { useRef, useEffect } from "react";
 
 export default function RaiseBtn({show, minRaise, maxRaise, raiseAmount ,setRaiseAmount}){
-    if(!show) return;
-
     const modal = useRef();
 
     const popUp = () => {
@@ -23,6 +21,8 @@ export default function RaiseBtn({show, minRaise, maxRaise, raiseAmount ,setRais
         window.addEventListener('click', handleClickOutside);
         return () => window.removeEventListener('click', handleClickOutside);
     }, []);
+
+    if(!show) return null;
 
     return (
         <div className="">

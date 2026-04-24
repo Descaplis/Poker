@@ -37,7 +37,7 @@ export default function CreateLobby() {
             showAlert("Liczba graczy musi być pomiędzy 2 a 8!");
             return;
         }
-        if (initialBalance < smallBlind) {
+        if (Number(initialBalance) < Number(smallBlind)) {
             showAlert("Small blind nie może być większy od początkowego balansu");
             return;
         }

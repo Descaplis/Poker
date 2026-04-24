@@ -51,7 +51,7 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
                     </h1>
                     )}
 
-                    {isCurrentTurn && endTime ? (
+                    {endTime ? (
                         <Timer endTime={endTime} isFolded={isFolded}/>
                     )
                     : (
