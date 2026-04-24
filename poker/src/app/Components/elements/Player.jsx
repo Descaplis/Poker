@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Timer from "./timer";
 
-export default function Player({ name, position, cards, balance, bet, endTime, isAllIn, blind, isFolded, isCurrentTurn }) {
+export default function Player({ name, position, cards, balance, bet, endTime, isAllIn, blind, isFolded, isCurrentTurn , isWinner}) {
     return (
         <div>
             <div className={`w-[16vw] h-[15vh] 
@@ -15,7 +15,8 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
             >
                 {/* Cards */}
                 <div className={`flex justify-center absolute 
-                    ${position == 'down' ? '-top-25 left-0 right-0' :
+                    ${isWinner ? '-top-25 left-0 right-0' :
+                    position == 'down' ? '-top-25 left-0 right-0' :
                     position == 'left' ? 'top-0 left-0 -right-85' :
                     position == 'right' ? 'top-0 -left-85 right-0' : 
                     'top-25 left-0 right-0'}`}
@@ -24,6 +25,8 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
                         {
                             cards ? 
                             <Image src={`/images/karty/${cards[0]}.png`} fill alt="card1"/>
+                            : isWinner ?
+                            <Image src={`/images/crown.png`} fill alt="crown"/>
                             :
                             <Image src="/images/karty/BackCard.png" fill alt="card1"/>
                         }
@@ -33,6 +36,8 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
                         {
                             cards ? 
                             <Image src={`/images/karty/${cards[1]}.png`} fill alt="card2"/>
+                            : isWinner ?
+                            ""
                             :
                             <Image src="/images/karty/BackCard.png" fill alt="card2"/>
                         }
