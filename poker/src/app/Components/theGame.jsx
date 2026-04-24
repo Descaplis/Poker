@@ -78,13 +78,13 @@ export default function theGame() {
 					{/* Gracze na dole (5 i 6) */}
 					<div className="flex justify-evenly w-full max-w-2xl gap-4">
 						<Player name="Gracz 6" position="down" cards={["3Pik", "queenKier"]} balance={10} isAllIn={false} />
-						<Player name="Gracz 5" position="down" balance={48} isFolded={false} />
+						<Player name="Gracz 5" position="down" balance={48} isFolded={false} isWinner={false}/>
 					</div>
 				</div>
 
 				{/* Gracze po prawej (3 i 4) */}
 				<div className="flex flex-col justify-around gap-[10vh] h-[60vh] md:h-[50vh]">
-					<Player name="Gracz 3" position="right" blind="big" />
+					<Player name="Gracz 3" position="right" blind="big" isWinner={false}/>
 					<Player name="Gracz 4" position="right" />
 				</div>
 			</div>
