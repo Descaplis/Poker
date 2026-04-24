@@ -49,11 +49,11 @@ app.post("/getCurrentTurnSeat", async (req, res) => {
 });
 
 app.post("/getCurrentBet", async (req, res) => {
-    if (req.body.code == null || req.body.playerId == null) {
+    if (req.body.code == null) {
         res.json({success: false});
         return;
     }
-    const currentBet = await GetCurrentBet(req.body.code, req.body.playerId);
+    const currentBet = await GetCurrentBet(req.body.code);
     res.json({currentBet});
 });
 

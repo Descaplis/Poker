@@ -71,7 +71,6 @@ export default function theGame() {
   const myPlayer = players.find((p) => p.id === myId) ?? null;
   const isMyTurn = myPlayer?.seat === currentTurnSeat;
   const maxRaise = myPlayer?.balance ?? 0;
-  const minRaise = Math.max(1, currentBet);
 
   const fetchAll = useCallback(async () => {
     if (!gameCode) return;
@@ -88,6 +87,9 @@ export default function theGame() {
         axios.post(`${base}/getBigBlindSeat`,    { code: gameCode }),
         axios.post(`${base}/getTurnEndTime`,    { code: gameCode }),
       ]);
+      console.log("currentTurnSeat:", rSeat.data.seat);
+      console.log("player seats:", rPlayers.data.players.map(p => ({ seat: p.seat , username: p.username})));
+      console.log("endTime z API:", rEndTime.data.endTime);
 
       setPlayers(rPlayers.data.players ?? []);
       setCurrentTurnSeat(rSeat.data.seat);
@@ -105,8 +107,16 @@ export default function theGame() {
 
   // useEffect for setting up socket.io
   useEffect(() => {
+    console.log("KOMPONENT SIĘ MONTAŻUJE, NAWIĄZYWANIE POŁĄCZENIA WEB SOCKET...");
     const socketConn = io("http://" + window.location.hostname + ":8080");
+    socketConn.on("connect", () => {
+      socketConn.emit("auth", myId);
+    });
     setSocket(socketConn);
+    return () => {
+      console.log("KOMPONENT SIĘ DEMONTAŻUJE, ZAMYKANIE POŁĄCZENIA WEB SOCKET...");
+      socketConn.disconnect();
+    };
   }, []);
   
   // useEffect for setting up socket listeners and fetching initial data
@@ -137,8 +147,6 @@ export default function theGame() {
       setGameOverData(data);
       fetchAll();
     });
-
-    socket.on("refresh_list", fetchAll);
 
     // First fetch
     fetchAll();
@@ -228,7 +236,7 @@ export default function theGame() {
 
       {/* Raise and check buttons */}
 			<div className="absolute flex flex-row gap-2 bottom-0 left-0 z-1 m-2">
-				<RaiseBtn show={isMyTurn} minRaise={minRaise} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} />
+				<RaiseBtn show={isMyTurn} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} handleMove={handleMove} />
 				<CheckBtn show={isMyTurn} onClick={() => handleMove("check", undefined)}/>
 			</div>
 

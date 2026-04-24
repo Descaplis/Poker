@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove } from './db.mjs';
+import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove, SetTurnEndTime } from './db.mjs';
 import { allowedOrigins } from "./index.mjs";
 
 const createWebsocketServer = (httpServer) => {
@@ -13,6 +13,7 @@ const createWebsocketServer = (httpServer) => {
     const autoCheckTimeouts = {};
 
     const nextTurn = async (code) => {
+        console.log("executing nextTurn for", code)
         const timeForMove = await GetTimeForMove(code);
         const endTime = Date.now() + timeForMove * 1000;
 
@@ -20,6 +21,7 @@ const createWebsocketServer = (httpServer) => {
             clearTimeout(autoCheckTimeouts[code]);
         }
 
+        SetTurnEndTime(code, endTime);
         console.log(`Emitting timer update to room ${code} with end time ${endTime}`);
         io.to(code).emit("next_turn", {endTime});
 
@@ -43,13 +45,15 @@ const createWebsocketServer = (httpServer) => {
     }
 
     const handleMoveResult = async (res, code) => {
+        console.log("handleMoveResult:", JSON.stringify(res), "code:", code);
         if (!res) {
+            console.log("Brak res, nextTurn");
             await nextTurn(code);
             return;
         }
 
         if (res.roundFinished) {
-            // Sprawdź czy gra się skończyła (DetermineWinner zwraca winners)
+            // Check if the whole game is finished
             if (res.winners) {
                 console.log("Game over! Winners:", res.winners);
                 io.to(code).emit("game_over", {
@@ -60,11 +64,13 @@ const createWebsocketServer = (httpServer) => {
                     }))
                 });
             } else {
-                // Nowa runda
+                console.log("Nowa runda, emituję next_round i nextTurn dla:", code);
+                // New round
                 io.to(code).emit("next_round");
                 await nextTurn(code);
             }
         } else {
+            console.log("Następna tura");
             await nextTurn(code);
         }
     }
@@ -134,6 +140,7 @@ const createWebsocketServer = (httpServer) => {
                 raiseValue: moveData.raiseValue
             });
 
+            console.log("Res: ", res);
             await handleMoveResult(res, moveData.gameCode);
         });
 

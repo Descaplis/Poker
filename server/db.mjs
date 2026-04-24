@@ -365,7 +365,7 @@ async function Raise(gameCode, playerId, raiseAmount) {
     const isAllIn = targetTotalBet >= Number(player.balance);
 
     query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $2, hasGoneAllIn = ($3 = 0) WHERE id = $4`,
+      text: `UPDATE players SET bet = $1, balance = balance - $2, hasGoneAllIn = ($3 = 0), last_move = 'raise' WHERE id = $4`,
       values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, playerId]
     };
     await client.query(query);
@@ -391,7 +391,7 @@ async function Raise(gameCode, playerId, raiseAmount) {
 
 async function Fold(gameCode, playerId) {
   const query = {
-    text: `UPDATE players SET is_folded = TRUE WHERE id = $1`,
+    text: `UPDATE players SET is_folded = TRUE, last_move = 'fold' WHERE id = $1`,
     values: [playerId]
   }
   await pool.query(query);
@@ -422,7 +422,7 @@ async function Check(gameCode, playerId) {
       text: `UPDATE players SET last_move = 'check' WHERE id = $1`,
       values: [playerId] 
     };
-    await pool.query();
+    await pool.query(query);
   } else {
     const difference = currentBet - playerBet;
     if (playerBalance <= difference) {
@@ -460,13 +460,13 @@ async function NextTurn(gameCode) {
   };
   const players = await pool.query(query).then(res => res.rows);
   const activePlayers = players.filter(p => !p.is_folded && !p.hasGoneAllIn);
-  let nextTurnSeat = (Number(game.current_turn_seat) + 1) % Number(game.players_amount);
+  let nextTurnSeat = (Number(game.current_turn_seat) + 1) % players.length;
 
   let checked = 0;
   while (checked < game.players_amount) {
     const candidate = players.find(p => p.seat === nextTurnSeat);
     if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn) break;
-    nextTurnSeat = (nextTurnSeat + 1) % Number(game.players_amount);
+    nextTurnSeat = (nextTurnSeat + 1) % players.length;
     checked++;
   }
 
@@ -482,17 +482,20 @@ async function NextTurn(gameCode) {
 async function ResolvePots(gameId) {
   // Get players who didn't fold and have bet more than 0
   let query = {
-    text: `SELECT id, bet, hasGoneAllIn, is_folded FROM players WHERE game_id = $1 ORDER BY bet ASC`,
+    text: `SELECT * FROM pots WHERE game_id = $1 ORDER BY CASE WHEN pot_type = 'MAIN' THEN 0 ELSE 1 END ASC`,
     values: [gameId]
   };
   const players = await pool.query(query).then(res => res.rows);
 
   if (players.length === 0) return;
-  await pool.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [gameId]);
-  await pool.query(`DELETE FROM pots WHERE game_id = $1`, [gameId]);
+  const existingPots = await pool.query(
+    `SELECT * FROM pots WHERE game_id = $1 ORDER BY pot_type DESC`, // MAIN pierwszy
+    [gameId]
+  ).then(res => res.rows);
 
   let lastAllInLevel = 0;
   const levels = [...new Set(players.map(p => Number(p.bet)))].sort((a, b) => a - b);
+  let potIndex = 0;
 
   for (const level of levels) {
     if (level <= lastAllInLevel) continue;
@@ -509,16 +512,33 @@ async function ResolvePots(gameId) {
     });
 
     const type = lastAllInLevel === 0 ? 'MAIN' : 'SIDE';
-    const newPot = await pool.query(
-      `INSERT INTO pots (game_id, value, pot_type) VALUES ($1, $2, $3) RETURNING id`,
-      [gameId, potValue, type]
-    );
+    const existingPot = existingPots[potIndex];
 
-    for (const playerId of eligiblePlayerIds) {
-      await pool.query(`INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`, [newPot.rows[0].id, playerId]);
+    if (existingPot) {
+      // Add to already existing pot
+      await pool.query(
+        `UPDATE pots SET value = value + $1 WHERE id = $2`,
+        [potValue, existingPot.id]
+      );
+
+      // Update players in the pot (can change because of folding or going all in)
+      await pool.query(`DELETE FROM pot_players WHERE pot_id = $1`, [existingPot.id]);
+      for (const playerId of eligiblePlayerIds) {
+        await pool.query(`INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`, [existingPot.id, playerId]);
+      }
+    } else {
+      // New pot
+      const newPot = await pool.query(
+        `INSERT INTO pots (game_id, value, pot_type) VALUES ($1, $2, $3) RETURNING id`,
+        [gameId, potValue, type]
+      );
+      for (const playerId of eligiblePlayerIds) {
+        await pool.query(`INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`, [newPot.rows[0].id, playerId]);
+      }
     }
 
     lastAllInLevel = level;
+    potIndex++;
   }
 }
 
@@ -539,13 +559,13 @@ async function EndRoundIfCan(game) {
   const currentBet = Number(freshGame.current_bet);
   const activePlayers = players.filter(player => !player.is_folded);
   
-  const allPlayersActed = activePlayers.every(p => Number(p.bet) === currentBet || p.hasGoneAllIn);
+  const allPlayersActed = activePlayers.every(p => (Number(p.bet) == currentBet || p.hasGoneAllIn)) && activePlayers.every(p => p.last_move != null || p.hasGoneAllIn);
   const nonFoldedPlayers = players.filter(p => !p.is_folded);
 
   // Round ends when all active players have equal bet or are all-in or only one player didn't fold
   if (nonFoldedPlayers.length == 1 || allPlayersActed) {
     await ResolvePots(game.id);
-
+    await pool.query(`UPDATE players SET bet = 0, last_move = NULL WHERE game_id = $1`, [freshGame.id]);
     // End the round
     query = {
       text: `UPDATE players SET bet = 0 WHERE game_id = $1`,
@@ -553,9 +573,9 @@ async function EndRoundIfCan(game) {
     }
     await pool.query(query);
 
-    const nextSmallBlindSeat = (Number(freshGame.small_blind_seat) + 1) % Number(freshGame.players_amount);
-    const nextBigBlindSeat = (Number(freshGame.big_blind_seat) + 1) % Number(freshGame.players_amount);
-    const nextFirstTurnSeat = (nextBigBlindSeat + 1) % Number(freshGame.players_amount);
+    const nextSmallBlindSeat = (Number(freshGame.small_blind_seat) + 1) % players.length;
+    const nextBigBlindSeat = (Number(freshGame.big_blind_seat) + 1) % players.length;
+    const nextFirstTurnSeat = (nextBigBlindSeat + 1) % players.length;
     query = {
       text: `UPDATE games SET current_bet = 0, current_turn_seat = $1, small_blind_seat = $2, big_blind_seat = $3 WHERE id = $4`,
       values: [nextFirstTurnSeat, nextSmallBlindSeat, nextBigBlindSeat, game.id]
@@ -570,19 +590,28 @@ async function EndRoundIfCan(game) {
 }
 
 async function NextRoundOrEndGame(game) {
-  if (game.cards_on_table.length === 0) {
-    await PutCardsOnTable(game.code, 3);
-    return {roundFinished: true};
-  }
+  const freshGame = await pool.query(
+    `SELECT * FROM games WHERE code = $1`, [game.code]
+  ).then(res => res.rows[0]);
+
+  const players = await pool.query(
+    `SELECT * FROM players WHERE game_id = $1`, [freshGame.id]
+  ).then(res => res.rows);
+  const nonFolded = players.filter(p => !p.is_folded);
 
   // If it was the last round, determine the winner and end the game
-  if (game.cards_on_table.length == 5) {
-    const result = await DetermineWinner(game);
+  if (nonFolded.length == 1 || freshGame.cards_on_table.length == 5) {
+    const result = await DetermineWinner(freshGame);
     return { roundFinished: true, winners: result.winners, ranks: result.ranks };
   }
 
+  if (freshGame.cards_on_table.length === 0) {
+    await PutCardsOnTable(freshGame.code, 3);
+    return {roundFinished: true};
+  }
+
   // Put cards on table and start next round
-  await PutCardsOnTable(game.code, 1);
+  await PutCardsOnTable(freshGame.code, 1);
   return {roundFinished: true};
 }
 
@@ -593,12 +622,15 @@ async function DetermineWinner(game) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    console.log("DetermineWinner - transaction started");
+    console.log("DetermineWinner - game:", game);
 
     let query = {
       text: `SELECT * FROM pots WHERE game_id = $1`,
       values: [game.id]
     }
-    const pots = await client.query(query).then(res => res.rows);    
+    const pots = await client.query(query).then(res => res.rows);
+    console.log("Pots:", pots);
     
     query = {
       text: `SELECT * FROM games WHERE id = $1`,
@@ -615,10 +647,12 @@ async function DetermineWinner(game) {
         values: [pot.id]
       }
       const eligiblePlayers = await client.query(query).then(res => res.rows);
+      console.log("Eligible players:", eligiblePlayers);
 
       if (eligiblePlayers.length == 0) continue;
 
       let Hand = require('pokersolver').Hand;
+      console.log("Hand:", Hand)
       const playersHands = eligiblePlayers
         .filter(player => !player.is_folded)
         .map(player => {
@@ -628,7 +662,11 @@ async function DetermineWinner(game) {
 
       const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
       winners = playersHands.filter(ph => winningHands.some(wh => wh === ph.hand));
+      console.log("Players hands:", playersHands);
+      console.log("Winning hands:", winningHands);
+      console.log("Winners:", winners);
       ranks = winners.map(ph => ph.hand.name);
+      console.log("Ranks:", winners);
 
       const share = Math.floor(pot.value / winners.length);
       const remainder = pot.value % winners.length;
@@ -764,11 +802,20 @@ async function GetPots(gameCode) {
   const game = await GetGameByCode(gameCode);
   if (!game) return [];
 
-  let query = { 
-    text: `SELECT * FROM pots WHERE game_id = $1`,
-    values: [game.id] 
-  };
-  const pots = await pool.query(query).then(res => res.rows);
+  const pots = await pool.query(
+    `SELECT * FROM pots WHERE game_id = $1 ORDER BY CASE WHEN pot_type = 'MAIN' THEN 0 ELSE 1 END ASC`,
+    [game.id]
+  ).then(res => res.rows);
+
+  // Suma bieżących zakładów graczy (w trakcie fazy licytacji)
+  const currentBetsSum = await pool.query(
+    `SELECT COALESCE(SUM(bet), 0) AS total FROM players WHERE game_id = $1`,
+    [game.id]
+  ).then(res => Number(res.rows[0].total));
+
+  if (pots.length === 0) {
+    return [{pot_type: 'MAIN', value: currentBetsSum, players: []}];
+  }
 
   for (const pot of pots) {
     query = {
@@ -778,6 +825,8 @@ async function GetPots(gameCode) {
     const players = await pool.query(query).then(res => res.rows);
     pot.players = players;
   }
+
+  pots[0].value += currentBetsSum;
 
   return pots;
 }
@@ -790,4 +839,12 @@ async function GetTurnEndTime(gameCode) {
   return await pool.query(query).then(res => res.rows[0].turn_end_time);
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime };
+async function SetTurnEndTime(gameCode, endTime) {
+  let query = {
+    text: `UPDATE games SET turn_end_time = $1 WHERE code = $2`,
+    values: [endTime, gameCode]
+  }
+  return await pool.query(query);
+}
+
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, SetTurnEndTime };

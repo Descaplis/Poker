@@ -46,6 +46,13 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
 
                 {/* Player data */}
                 <div className={`${position != 'down' || position != 'right' || position != 'left' ? '' : 'relative top-25 left-0 right-0'}`}>
+                    {endTime ? (
+                        <Timer endTime={endTime} isFolded={isFolded}/>
+                    )
+                    : (
+                        <div></div>
+                    )}
+
                     <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-2xl font-black text-center m-auto pointer-events-none`}>{name}</h1>
 
                     <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-lg font-black text-center pointer-events-none`}>Stan: ${balance}</h1>
@@ -54,13 +61,6 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
                     <h1 className={`${isFolded ? 'text-gray-600' : 'text-yellow-300'} text-lg font-bold text-center pointer-events-none`}>
                     zakład: ${bet}
                     </h1>
-                    )}
-
-                    {endTime ? (
-                        <Timer endTime={endTime} isFolded={isFolded}/>
-                    )
-                    : (
-                        <div></div>
                     )}
 
                     <div className={`${position == 'right' && 'relative'}`}>
