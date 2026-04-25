@@ -103,7 +103,7 @@ app.post("/getMaximumRaiseValue", async (req, res) => {
 });
 
 app.post("/getPots", async (req, res) => {
-    if (req.body.playerId == null) {
+    if (req.body.code == null) {
         res.json({success: false});
         return;
     }

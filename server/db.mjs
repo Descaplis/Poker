@@ -480,27 +480,29 @@ async function NextTurn(gameCode) {
 }
 
 async function ResolvePots(gameId) {
-  // Get players who didn't fold and have bet more than 0
-  let query = {
-    text: `SELECT * FROM pots WHERE game_id = $1 ORDER BY CASE WHEN pot_type = 'MAIN' THEN 0 ELSE 1 END ASC`,
-    values: [gameId]
-  };
-  const players = await pool.query(query).then(res => res.rows);
-
-  if (players.length === 0) return;
-  const existingPots = await pool.query(
-    `SELECT * FROM pots WHERE game_id = $1 ORDER BY pot_type DESC`, // MAIN pierwszy
+  const players = await pool.query(
+    `SELECT id, bet, hasGoneAllIn, is_folded FROM players WHERE game_id = $1 ORDER BY bet ASC`,
     [gameId]
   ).then(res => res.rows);
 
-  let lastAllInLevel = 0;
-  const levels = [...new Set(players.map(p => Number(p.bet)))].sort((a, b) => a - b);
+  if (players.length === 0) return;
+  console.log("[ResolvePots] players bets:", players.map(p => ({ bet: p.bet, folded: p.is_folded, allin: p.hasGoneAllIn })));
+
+  const existingPots = await pool.query(
+    `SELECT * FROM pots WHERE game_id = $1 ORDER BY CASE WHEN pot_type = 'MAIN' THEN 0 ELSE 1 END ASC, value ASC`,
+    [gameId]
+  ).then(res => res.rows);
+
+   console.log("[ResolvePots] existingPots before:", existingPots.map(p => ({ type: p.pot_type, value: p.value })));
+
+  let lastLevel = 0;
   let potIndex = 0;
+  const levels = [...new Set(players.map(p => Number(p.bet)).filter(b => b > 0))].sort((a, b) => a - b);
+
+  console.log("[ResolvePots] levels:", levels);
 
   for (const level of levels) {
-    if (level <= lastAllInLevel) continue;
-
-    const contributionPerPlayer = level - lastAllInLevel;
+    const contributionPerPlayer = level - lastLevel;
     let potValue = 0;
     let eligiblePlayerIds = [];
 
@@ -511,23 +513,19 @@ async function ResolvePots(gameId) {
       }
     });
 
-    const type = lastAllInLevel === 0 ? 'MAIN' : 'SIDE';
+    console.log(`[ResolvePots] level=${level}, potValue=${potValue}, eligible:`, eligiblePlayerIds);
+
+    const type = potIndex === 0 ? 'MAIN' : 'SIDE';
     const existingPot = existingPots[potIndex];
 
     if (existingPot) {
-      // Add to already existing pot
-      await pool.query(
-        `UPDATE pots SET value = value + $1 WHERE id = $2`,
-        [potValue, existingPot.id]
-      );
-
-      // Update players in the pot (can change because of folding or going all in)
+      await pool.query(`UPDATE pots SET value = value + $1 WHERE id = $2`, [potValue, existingPot.id]);
       await pool.query(`DELETE FROM pot_players WHERE pot_id = $1`, [existingPot.id]);
       for (const playerId of eligiblePlayerIds) {
         await pool.query(`INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`, [existingPot.id, playerId]);
       }
+      console.log(`[ResolvePots] Updated existing ${existingPot.pot_type} pot id=${existingPot.id} += ${potValue}`);
     } else {
-      // New pot
       const newPot = await pool.query(
         `INSERT INTO pots (game_id, value, pot_type) VALUES ($1, $2, $3) RETURNING id`,
         [gameId, potValue, type]
@@ -535,9 +533,10 @@ async function ResolvePots(gameId) {
       for (const playerId of eligiblePlayerIds) {
         await pool.query(`INSERT INTO pot_players (pot_id, player_id) VALUES ($1, $2)`, [newPot.rows[0].id, playerId]);
       }
+      console.log(`[ResolvePots] Created new ${type} pot += ${potValue}`);
     }
 
-    lastAllInLevel = level;
+    lastLevel = level;
     potIndex++;
   }
 }
@@ -807,26 +806,26 @@ async function GetPots(gameCode) {
     [game.id]
   ).then(res => res.rows);
 
-  // Suma bieżących zakładów graczy (w trakcie fazy licytacji)
+  // Sum of current bets of all players during the game, which will be added to the main pot
   const currentBetsSum = await pool.query(
     `SELECT COALESCE(SUM(bet), 0) AS total FROM players WHERE game_id = $1`,
     [game.id]
   ).then(res => Number(res.rows[0].total));
 
+  for (const pot of pots) {
+    const players = await pool.query(
+      `SELECT p.id, p.username FROM players p JOIN pot_players pp ON p.id = pp.player_id WHERE pp.pot_id = $1`,
+      [pot.id]
+    ).then(res => res.rows);
+    pot.players = players;
+  }
+
   if (pots.length === 0) {
     return [{pot_type: 'MAIN', value: currentBetsSum, players: []}];
   }
 
-  for (const pot of pots) {
-    query = {
-      text: `SELECT p.id, p.username FROM players p JOIN pot_players pp ON p.id = pp.player_id WHERE pp.pot_id = $1`,
-      values: [pot.id]
-    };
-    const players = await pool.query(query).then(res => res.rows);
-    pot.players = players;
-  }
-
-  pots[0].value += currentBetsSum;
+  // Add current bets to the main pot value, because they are not added to any pot yet
+  pots[0].value = Number(pots[0].value) + currentBetsSum;
 
   return pots;
 }
