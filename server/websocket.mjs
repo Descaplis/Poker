@@ -73,8 +73,8 @@ const createWebsocketServer = (httpServer) => {
                         rank: w.hand?.name
                     }))
                 });
-                // Wait 5 seconds for players to see the result
-                setTimeout(() => nextTurn(code), 5000);
+                // Wait 10 seconds for players to see the result
+                setTimeout(() => nextTurn(code), 10000);
             } else {
                 // Next round (flop/turn/river)
                 console.log("Nowa runda, emituję next_round i nextTurn dla:", code);
@@ -163,10 +163,18 @@ const createWebsocketServer = (httpServer) => {
 
                 disconnectTimeouts[socket.userData.playerId] = setTimeout(async () => {
                     try {
-                        const {playerId, code} = socket.userData;
-                        await LeaveGame(playerId);
-                        io.to(code).emit("refresh_list");
-                        delete disconnectTimeouts[playerId];
+                        const {playerId, code, username} = socket.userData;
+                        const gameStatus = await GetGameStatus(code);
+                        if (gameStatus == "waiting") {
+                            await LeaveGame(playerId);
+                            io.to(code).emit("refresh_list");
+                            delete disconnectTimeouts[playerId];
+                            return;
+                        } else {
+                            io.to(code).emit("player_disconnected", {playerId, username});
+                            delete disconnectTimeouts[playerId];
+                            return;
+                        }
                     } catch (err) {
                         console.error("An error occured during deleting player: ", err);
                     }

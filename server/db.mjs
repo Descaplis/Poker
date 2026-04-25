@@ -332,7 +332,7 @@ async function startGame(gameCode) {
   const turnEndTime = Date.now() + game.time_for_move * 1000;
 
   await pool.query(
-    `UPDATE games SET current_turn_seat = $1, turn_end_time = $2 WHERE id = $3`,
+    `UPDATE games SET current_turn_seat = $1, turn_end_time = $2, status = 'playing' WHERE id = $3`,
     [firstTurnSeat, turnEndTime, game.id]
   );
   // wait for players to make their moves, then put cards on table and so on
@@ -870,6 +870,14 @@ async function GetTurnEndTime(gameCode) {
   return await pool.query(query).then(res => res.rows[0].turn_end_time);
 }
 
+async function GetGameStatus(gameCode) {
+  let query = {
+    text: `SELECT status FROM games WHERE code = $1`,
+    values: [gameCode]
+  }
+  return await pool.query(query).then(res => res.rows[0].status);
+}
+
 async function SetTurnEndTime(gameCode, endTime) {
   let query = {
     text: `UPDATE games SET turn_end_time = $1 WHERE code = $2`,
@@ -878,4 +886,14 @@ async function SetTurnEndTime(gameCode, endTime) {
   return await pool.query(query);
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, SetTurnEndTime };
+async function DeleteGame(gameCode) {
+  const game = await GetGameByCode(gameCode);
+  if (!game) return;
+  const gameId = game.id;
+  await pool.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [gameId]);
+  await pool.query(`DELETE FROM pots WHERE game_id = $1`, [gameId]);
+  await pool.query(`DELETE FROM players WHERE game_id = $1`, [gameId]);
+  await pool.query(`DELETE FROM games WHERE id = $1`, [gameId]);
+}
+
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, GetGameStatus, SetTurnEndTime, DeleteGame };

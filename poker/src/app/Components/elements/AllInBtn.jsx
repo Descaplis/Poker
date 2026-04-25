@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useEffect } from "react";
 
-export default function AllInBtn({show, handleMove}){
+export default function AllInBtn({show, onClick}){
     const modal = useRef();
 
     const popUp = () => {
@@ -35,7 +35,7 @@ export default function AllInBtn({show, handleMove}){
                     m-auto p-[1%] border border-black w-[20vw] shadow-xl/30 rounded-b-2xl animate-popup">
                     <label className="font-black text-white text-lg">Czy na pewno?</label>
                     <div className="flex flex-row gap-2">
-                        <button className="mx-auto mt-4 bg-green-700 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer" onClick={handleMove}>Potwierdź</button>
+                        <button className="mx-auto mt-4 bg-green-700 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer" onClick={onClick}>Potwierdź</button>
                         <button className="mx-auto mt-4 bg-red-700 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer" onClick={closePop}>Anuluj</button>
                     </div>
                 </div>

@@ -29,7 +29,7 @@ export default function Lobby() {
 
     const handleLeave = async () => {
         socket.emit("leave_room", playerId, code);
-        sessionStorage.clear();
+        localStorage.clear();
         router.push("/");
     }
 
@@ -38,9 +38,9 @@ export default function Lobby() {
     }
 
     useEffect(() => {
-        const storedCode = sessionStorage.getItem("code");
-        const storedPlayerId = sessionStorage.getItem("playerId");
-        const storedIsHost = sessionStorage.getItem("isHost");
+        const storedCode = localStorage.getItem("code");
+        const storedPlayerId = localStorage.getItem("playerId");
+        const storedIsHost = localStorage.getItem("isHost");
         setCode(storedCode);
         setPlayerId(storedPlayerId);
         setIsHost(storedIsHost);

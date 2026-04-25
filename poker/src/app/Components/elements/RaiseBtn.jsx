@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useEffect } from "react";
 
-export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, handleMove}){
+export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, onClick}){
     const modal = useRef();
 
     const popUp = () => {
@@ -39,7 +39,7 @@ export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, h
                     <button className="mx-auto mt-4 bg-red-900 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer"
                     onClick={(e) => {
                         e.preventDefault();
-                        handleMove("raise", raiseAmount);
+                        onClick("raise", raiseAmount);
                     }}>Potwierdź</button>
                 </div>
             </div>

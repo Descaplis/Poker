@@ -44,6 +44,41 @@ const convertCardNames = (myCards) => {
   return myCards;
 }
 
+const translateRank = (rank) => {
+  switch (rank) {
+    case "Straight Flush":
+      return "Poker";
+    case "Five of a Kind":
+      return "Piątka";
+    case "Four of a Kind with Pair or Better":
+      return "Kareta z parą lub czymś lepszym";
+    case "Four of a Kind":
+      return "Kareta";
+    case "Four Wild Cards":
+      return "Kareta";
+    case "Three of a Kind with Two Pair":
+      return "Trójka z dwoma parami";
+    case "Full House":
+      return "Full";
+    case "Flush":
+      return "Kolor";
+    case "Straight":
+      return "Strit";
+    case "Two Three Of a Kind":
+      return "Dwie trójki";
+    case "Three of a Kind":
+      return "Trójka";
+    case "Three Pair":
+      return "Trzy pary";
+    case "Two Pair":
+      return "Dwie pary";
+    case "Pair":
+      return "Para";
+    case "High Card":
+      return "Wysoka karta"
+  }
+}
+
 export default function theGame() {
   const [socket, setSocket] = useState(null);
   // game state from backend
@@ -61,14 +96,14 @@ export default function theGame() {
 
   // game over data
   const [gameOverData, setGameOverData] = useState(null);
+  const [gameOverPlayers, setGameOverPlayers] = useState([]);
 
   // hand over
   const [handWinners, setHandWinners] = useState([]);
 
   //  session data
-  console.log(sessionStorage);
-  const myId = sessionStorage.getItem("playerId");
-  const gameCode = sessionStorage.getItem("code");
+  const myId = localStorage.getItem("playerId");
+  const gameCode = localStorage.getItem("code");
 
   // data about current turn
   const myPlayer = players.find((p) => p.id === myId) ?? null;
@@ -144,18 +179,19 @@ export default function theGame() {
       setHandWinners(data.winners);
       setTimeout(() => {
         setHandWinners([]);
-      }, 5000);
+      }, 10000);
     });
 
-    socket.on("game_over", (data) => {
-      console.log("══════════════════════════════");
-      console.log("       KONIEC GRY 🏆          ");
-      console.log("══════════════════════════════");
-      data.winners.forEach((w) => {
-        console.log(`  ★ ${w.username}${w.rank ? ` — ${w.rank}` : ""}`);
-      });
+    socket.on("game_over", async (data) => {
+      console.log("KONIEC GRY", data);
+      setGameOverPlayers(players);
       setGameOverData(data);
-      fetchAll();
+      await fetchAll();
+    });
+
+    socket.on("player_disconnected", async (data) => {
+      alert(`Gracz ${data.username} rozłączył się.`);
+      await fetchAll();
     });
 
     // First fetch
@@ -187,11 +223,10 @@ export default function theGame() {
     const isMe = player.id == myId;
     const isCurrentTurn = player.seat == currentTurnSeat;
     const isWinner = handWinners.some(w => w.id === player.id);
+    const isShowdown = handWinners.length > 0;
 
     let cards;
-    if (isMe && player.cards?.length) {
-      cards = convertCardNames(player.cards);
-    } else if (gameOverData && player.cards?.length) {
+    if (player.cards?.length && (isMe || isShowdown || gameOverData)) {
       cards = convertCardNames(player.cards);
     }
 
@@ -256,7 +291,7 @@ export default function theGame() {
               <div key={i}>
                 <span className="text-white text-2xl font-black">{w.username}</span>
                 {w.rank && (
-                  <span className="text-amber-300 text-base ml-2">({w.rank})</span>
+                  <span className="text-amber-300 text-base ml-2">({translateRank(w.rank)})</span>
                 )}
               </div>
             ))}
@@ -266,7 +301,7 @@ export default function theGame() {
 
       {/* Raise and check buttons */}
 			<div className="absolute flex flex-row gap-2 bottom-0 left-0 z-1 m-2">
-				<RaiseBtn show={isMyTurn} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} handleMove={handleMove} />
+				<RaiseBtn show={isMyTurn} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} onClick={handleMove} />
 				<CheckBtn show={isMyTurn} onClick={() => handleMove("check", undefined)}/>
 			</div>
 
@@ -302,7 +337,7 @@ export default function theGame() {
                       {sidePots.map((pot, i) => (
                         <div key={i} className="text-gray-300 text-md text-center">
                           <h1 className="font-bold">Side pot {i+1}</h1>
-                          <p>${pot}</p>
+                          <p>${pot.value}</p>
                         </div>
                       ))}
 									  </div>
