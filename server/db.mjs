@@ -2,6 +2,8 @@
 import { Pool, Query } from 'pg';
 import dotenv from 'dotenv';
 import e, { text } from 'express';
+import pokersolver from 'pokersolver';
+const { Hand } = pokersolver;
 dotenv.config();
 
 // Konfiguracja połączenia na podstawie zmiennych środowiskowych
@@ -224,7 +226,7 @@ async function BetBlinds(gameCode) {
   for (const player of players) {
     let betValue = player.seat === game.small_blind_seat ? game.small_blind_value : game.small_blind_value * 2;
     query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $1 WHERE game_id = $2 AND seat = $3`,
+      text: `UPDATE players SET bet = $1, balance = balance - $1, last_move = 'blind' WHERE game_id = $2 AND seat = $3`,
       values: [betValue, game.id, player.seat]
     }
     await pool.query(query);
@@ -459,13 +461,12 @@ async function NextTurn(gameCode) {
     values: [game.id]
   };
   const players = await pool.query(query).then(res => res.rows);
-  const activePlayers = players.filter(p => !p.is_folded && !p.hasGoneAllIn);
   let nextTurnSeat = (Number(game.current_turn_seat) + 1) % players.length;
 
   let checked = 0;
-  while (checked < game.players_amount) {
+  while (checked < players.length) {
     const candidate = players.find(p => p.seat === nextTurnSeat);
-    if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn) break;
+    if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn && Number(candidate.balance > 0)) break;
     nextTurnSeat = (nextTurnSeat + 1) % players.length;
     checked++;
   }
@@ -556,32 +557,27 @@ async function EndRoundIfCan(game) {
   const freshGame = await pool.query(query).then(res => res.rows[0]);
 
   const currentBet = Number(freshGame.current_bet);
-  const activePlayers = players.filter(player => !player.is_folded);
+  const activePlayers = players.filter(player => !player.is_folded && (Number(player.balance) > 0 || player.hasGoneAllIn));
   
-  const allPlayersActed = activePlayers.every(p => (Number(p.bet) == currentBet || p.hasGoneAllIn)) && activePlayers.every(p => p.last_move != null || p.hasGoneAllIn);
+  const allPlayersActed = activePlayers.every(p => 
+    (Number(p.bet) == currentBet || p.hasGoneAllIn)
+  ) && activePlayers.every(p => 
+    p.last_move != null && p.last_move !== 'blind' || p.hasGoneAllIn
+  );
   const nonFoldedPlayers = players.filter(p => !p.is_folded);
 
   // Round ends when all active players have equal bet or are all-in or only one player didn't fold
   if (nonFoldedPlayers.length == 1 || allPlayersActed) {
     await ResolvePots(game.id);
     await pool.query(`UPDATE players SET bet = 0, last_move = NULL WHERE game_id = $1`, [freshGame.id]);
-    // End the round
+
+    // UWAGA: blindy NIE są tu przesuwane — przesuwamy je tylko raz na całe rozdanie, w DetermineWinner
     query = {
-      text: `UPDATE players SET bet = 0 WHERE game_id = $1`,
+      text: `UPDATE games SET current_bet = 0 WHERE id = $1`,
       values: [game.id]
     }
     await pool.query(query);
 
-    const nextSmallBlindSeat = (Number(freshGame.small_blind_seat) + 1) % players.length;
-    const nextBigBlindSeat = (Number(freshGame.big_blind_seat) + 1) % players.length;
-    const nextFirstTurnSeat = (nextBigBlindSeat + 1) % players.length;
-    query = {
-      text: `UPDATE games SET current_bet = 0, current_turn_seat = $1, small_blind_seat = $2, big_blind_seat = $3 WHERE id = $4`,
-      values: [nextFirstTurnSeat, nextSmallBlindSeat, nextBigBlindSeat, game.id]
-    }
-    await pool.query(query);
-
-    // Next round or end game if it was the last one
     return await NextRoundOrEndGame(freshGame);
   }
 
@@ -601,7 +597,7 @@ async function NextRoundOrEndGame(game) {
   // If it was the last round, determine the winner and end the game
   if (nonFolded.length == 1 || freshGame.cards_on_table.length == 5) {
     const result = await DetermineWinner(freshGame);
-    return { roundFinished: true, winners: result.winners, ranks: result.ranks };
+    return { roundFinished: true, winners: result.winners, gameOver: result.gameOver, handOver: result.handOver };
   }
 
   if (freshGame.cards_on_table.length === 0) {
@@ -616,13 +612,11 @@ async function NextRoundOrEndGame(game) {
 
 async function DetermineWinner(game) {
   // Get the pots
-  let winners, ranks;
+  let winners;
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    console.log("DetermineWinner - transaction started");
-    console.log("DetermineWinner - game:", game);
 
     let query = {
       text: `SELECT * FROM pots WHERE game_id = $1`,
@@ -650,8 +644,6 @@ async function DetermineWinner(game) {
 
       if (eligiblePlayers.length == 0) continue;
 
-      let Hand = require('pokersolver').Hand;
-      console.log("Hand:", Hand)
       const playersHands = eligiblePlayers
         .filter(player => !player.is_folded)
         .map(player => {
@@ -661,11 +653,7 @@ async function DetermineWinner(game) {
 
       const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
       winners = playersHands.filter(ph => winningHands.some(wh => wh === ph.hand));
-      console.log("Players hands:", playersHands);
-      console.log("Winning hands:", winningHands);
       console.log("Winners:", winners);
-      ranks = winners.map(ph => ph.hand.name);
-      console.log("Ranks:", winners);
 
       const share = Math.floor(pot.value / winners.length);
       const remainder = pot.value % winners.length;
@@ -680,6 +668,7 @@ async function DetermineWinner(game) {
       }
     }
 
+    // Clear pots and reset players
     await client.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [game.id]);
     await client.query(`DELETE FROM pots WHERE game_id = $1`, [game.id]);
     await client.query(`UPDATE players SET is_folded = FALSE, hasGoneAllIn = FALSE, bet = 0, cards = NULL, last_move = NULL WHERE game_id = $1`, [game.id]);
@@ -693,7 +682,50 @@ async function DetermineWinner(game) {
     client.release();
   }
 
-  return { winners, ranks};
+  // Check if the whole game ends
+  const remainingPlayers = await pool.query(
+    `SELECT * FROM players WHERE game_id = $1 AND balance > 0`, [game.id]
+  ).then(res => res.rows);
+
+  if (remainingPlayers.length <= 1) {
+    console.log("Koniec gry — tylko jeden gracz ma żetony");
+    return { winners, gameOver: true };
+  }
+
+  // The game goes on, move the blinds and start new hand
+  const allPlayers = await pool.query(
+  `SELECT * FROM players WHERE game_id = $1 ORDER BY seat ASC`, [game.id]
+  ).then(res => res.rows);
+
+  const playerCount = allPlayers.length;
+  const freshGame2 = await pool.query(
+    `SELECT * FROM games WHERE id = $1`, [game.id]
+  ).then(res => res.rows[0]);
+
+  const nextSmallBlind = (Number(freshGame2.small_blind_seat) + 1) % playerCount;
+  const nextBigBlind = (Number(freshGame2.big_blind_seat) + 1) % playerCount;
+
+  // In first turn: player after big blind except the ones without balance
+  let nextFirstTurn = (nextBigBlind + 1) % playerCount;
+  for (let i = 0; i < playerCount; i++) {
+    const candidate = allPlayers.find(p => p.seat === nextFirstTurn);
+    if (candidate && Number(candidate.balance) > 0) break;
+    nextFirstTurn = (nextFirstTurn + 1) % playerCount;
+  }
+
+  // New deck
+  const newDeck = CreateDeck();
+  await pool.query(
+    `UPDATE games SET cards = $1, cards_on_table = '{}', current_bet = 0, small_blind_seat = $2, big_blind_seat = $3, current_turn_seat = $4 WHERE id = $5`,
+    [newDeck, nextSmallBlind, nextBigBlind, nextFirstTurn, game.id]
+  );
+
+  await GiveCardsToPlayers(game.code);
+  await BetBlinds(game.code);
+
+  console.log(`Nowe rozdanie: smallBlind=${nextSmallBlind}, bigBlind=${nextBigBlind}, firstTurn=${nextFirstTurn}`);
+
+  return { winners, handOver: true };
 }
 
 // FUNCTIONS TO GET CERTAIN VALUES

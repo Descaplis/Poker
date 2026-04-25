@@ -37,7 +37,7 @@ const createWebsocketServer = (httpServer) => {
                         await Fold(code, currentPlayer.id);
                         nextTurn(code);
                     } catch (e) {
-                        console.error("Auto-check failed", e);
+                        console.error("Auto-fold failed", e);
                     }
                 }
             }
@@ -53,9 +53,9 @@ const createWebsocketServer = (httpServer) => {
         }
 
         if (res.roundFinished) {
-            // Check if the whole game is finished
-            if (res.winners) {
-                console.log("Game over! Winners:", res.winners);
+            if (res.gameOver) {
+                // The whole game is over
+                console.log("Koniec gry! Zwycięzcy:", res.winners);
                 io.to(code).emit("game_over", {
                     winners: res.winners.map(w => ({
                         username: w.player?.username || w.username,
@@ -63,9 +63,21 @@ const createWebsocketServer = (httpServer) => {
                         rank: w.hand?.name
                     }))
                 });
+            } else if (res.handOver) {
+                // Hand is over, the game goes on — show hand winners, then start a new hand
+                console.log("Koniec rozdania! Zwycięzcy rozdania:", res.winners);
+                io.to(code).emit("hand_over", {
+                    winners: res.winners.map(w => ({
+                        username: w.player?.username || w.username,
+                        id: w.player?.id || w.id,
+                        rank: w.hand?.name
+                    }))
+                });
+                // Wait 5 seconds for players to see the result
+                setTimeout(() => nextTurn(code), 5000);
             } else {
+                // Next round (flop/turn/river)
                 console.log("Nowa runda, emituję next_round i nextTurn dla:", code);
-                // New round
                 io.to(code).emit("next_round");
                 await nextTurn(code);
             }

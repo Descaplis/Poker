@@ -56,11 +56,14 @@ export default function theGame() {
   const [pots, setPots] = useState([]);
   const [timerEndTime, setTimerEndTime] = useState(null);
 
+  // raise panel state
+  const [raiseAmount, setRaiseAmount] = useState(0);
+
   // game over data
   const [gameOverData, setGameOverData] = useState(null);
 
-  // raise panel state
-  const [raiseAmount, setRaiseAmount] = useState(0);
+  // hand over
+  const [handWinners, setHandWinners] = useState([]);
 
   //  session data
   console.log(sessionStorage);
@@ -107,14 +110,12 @@ export default function theGame() {
 
   // useEffect for setting up socket.io
   useEffect(() => {
-    console.log("KOMPONENT SIĘ MONTAŻUJE, NAWIĄZYWANIE POŁĄCZENIA WEB SOCKET...");
     const socketConn = io("http://" + window.location.hostname + ":8080");
     socketConn.on("connect", () => {
       socketConn.emit("auth", myId);
     });
     setSocket(socketConn);
     return () => {
-      console.log("KOMPONENT SIĘ DEMONTAŻUJE, ZAMYKANIE POŁĄCZENIA WEB SOCKET...");
       socketConn.disconnect();
     };
   }, []);
@@ -135,6 +136,15 @@ export default function theGame() {
 
     socket.on("player_moved", (data) => {
       console.log(`[WS] player_moved — Gracz ${data.playerId} wykonał: ${data.action}${data.raiseValue ? ` (${data.raiseValue})` : ''}`);
+    });
+
+    socket.on("hand_over", async (data) => {
+      console.log("[WS] hand_over — zwycięzcy rozdania:", data.winners);
+      await fetchAll();
+      setHandWinners(data.winners);
+      setTimeout(() => {
+        setHandWinners([]);
+      }, 5000);
     });
 
     socket.on("game_over", (data) => {
@@ -176,6 +186,7 @@ export default function theGame() {
 
     const isMe = player.id == myId;
     const isCurrentTurn = player.seat == currentTurnSeat;
+    const isWinner = handWinners.some(w => w.id === player.id);
 
     let cards;
     if (isMe && player.cards?.length) {
@@ -184,7 +195,6 @@ export default function theGame() {
       cards = convertCardNames(player.cards);
     }
 
-    console.log(`Seat ${seat} isCurrentTurn: ${isCurrentTurn}, endTime: ${timerEndTime}`)
     return {
       name: player.username,
       position: position,
@@ -194,6 +204,7 @@ export default function theGame() {
       isAllIn: player.hasGoneAllIn,
       isFolded: player.is_folded,
       isCurrentTurn: isCurrentTurn,
+      isWinner: isWinner,
       blind: player.seat == smallBlindSeat ? "small" : 
       player.seat == bigBlindSeat ? "big" :
       undefined,
@@ -230,6 +241,25 @@ export default function theGame() {
             >
               Zamknij
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hand finished - baner with the winner */}
+      {handWinners.length > 0 && !gameOverData && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-1 pointer-events-none">
+          <div className="bg-black/80 border-2 border-amber-400 rounded-2xl px-8 py-4 text-center shadow-2xl">
+            <p className="text-amber-400 text-sm font-bold uppercase tracking-widest mb-1">
+              {handWinners.length === 1 ? "Zwycięzca rozdania" : "Zwycięzcy rozdania"}
+            </p>
+            {handWinners.map((w, i) => (
+              <div key={i}>
+                <span className="text-white text-2xl font-black">{w.username}</span>
+                {w.rank && (
+                  <span className="text-amber-300 text-base ml-2">({w.rank})</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
