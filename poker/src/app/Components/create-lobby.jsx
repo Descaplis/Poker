@@ -50,7 +50,6 @@ export default function CreateLobby() {
                 initialBalance: initialBalance,
                 username: username
             });
-            console.log(res.data.game);
             sessionStorage.setItem("playerId", res.data.game.playerId);
             sessionStorage.setItem("username", username);
             sessionStorage.setItem("code", res.data.game.code);

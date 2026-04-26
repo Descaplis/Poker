@@ -571,17 +571,38 @@ async function EndRoundIfCan(game) {
     await ResolvePots(game.id);
     await pool.query(`UPDATE players SET bet = 0, last_move = NULL WHERE game_id = $1`, [freshGame.id]);
 
-    // UWAGA: blindy NIE są tu przesuwane — przesuwamy je tylko raz na całe rozdanie, w DetermineWinner
-    query = {
-      text: `UPDATE games SET current_bet = 0 WHERE id = $1`,
-      values: [game.id]
-    }
-    await pool.query(query);
+    // Resetting current turn seat to small blind before the next round
+    const firstToAct = await FindFirstActivePlayer(game.id, freshGame.small_blind_seat);
+
+    await pool.query(
+      `UPDATE games SET current_bet = 0, current_turn_seat = $1 WHERE id = $2`,
+      [firstToAct, game.id]
+    );
 
     return await NextRoundOrEndGame(freshGame);
   }
 
   return {roundFinished: false};
+}
+
+async function FindFirstActivePlayer(gameId, startSeat) {
+  const players = await pool.query(
+    `SELECT * FROM players WHERE game_id = $1 ORDER BY seat ASC`, 
+    [gameId]
+  ).then(res => res.rows);
+
+  let currentSeat = startSeat;
+  let checked = 0;
+
+  while (checked < players.length) {
+    const candidate = players.find(p => p.seat === currentSeat);
+    if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn && Number(candidate.balance) > 0) {
+      return currentSeat;
+    }
+    currentSeat = (currentSeat + 1) % players.length;
+    checked++;
+  }
+  return startSeat;
 }
 
 async function NextRoundOrEndGame(game) {
@@ -888,12 +909,13 @@ async function SetTurnEndTime(gameCode, endTime) {
 
 async function DeleteGame(gameCode) {
   const game = await GetGameByCode(gameCode);
-  if (!game) return;
+  if (!game) return false;
   const gameId = game.id;
   await pool.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [gameId]);
   await pool.query(`DELETE FROM pots WHERE game_id = $1`, [gameId]);
   await pool.query(`DELETE FROM players WHERE game_id = $1`, [gameId]);
   await pool.query(`DELETE FROM games WHERE id = $1`, [gameId]);
+  return true;
 }
 
 export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, GetGameStatus, SetTurnEndTime, DeleteGame };

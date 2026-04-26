@@ -8,7 +8,7 @@ export default function Player({ name, position, cards, balance, bet, endTime, i
                 ${isAllIn ? 'bg-radial-[at_50%_35%] from-amber-400 via-amber-600 to-amber-700 to-75%' : 
                 'bg-radial-[at_35%_35%] from-gray-700 to-gray-900 to-75%'} rounded-full border-4 relative p-2
                 ${isFolded ? 'border-black' : 'border-red-700'}
-                ${balance == 0 && !isAllIn ? 'opacity-50' : ''}
+                ${balance < 1 && !isAllIn ? 'opacity-50' : ''}
                 ${isCurrentTurn ? "shadow-[0_0_20px_4px_rgba(96,165,250,0.6)]" : ""}
                 transition-all duration-300`}
             >

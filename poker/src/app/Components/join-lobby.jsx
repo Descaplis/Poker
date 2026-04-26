@@ -37,7 +37,6 @@ export default function JoinLobby(){
             });
 
             if (res.data.result.success == true) {
-                console.log(`Successfully ${username} with id ${res.data.result.playerId} joined the game with code ${code}`);
                 sessionStorage.setItem("playerId", res.data.result.playerId);
                 sessionStorage.setItem("username", username);
                 sessionStorage.setItem("code", code);

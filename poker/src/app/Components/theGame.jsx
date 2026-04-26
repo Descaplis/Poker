@@ -5,6 +5,7 @@ import CheckBtn from "./elements/CheckBtn";
 import FoldBtn from "./elements/FoldBtn";
 import AllInBtn from "./elements/AllInBtn";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import axios from "axios";
 
@@ -75,6 +76,7 @@ const translateRank = (rank) => {
 
 export default function theGame() {
   const [socket, setSocket] = useState(null);
+  const router = useRouter();
   // game state from backend
   const [players, setPlayers] = useState([]);
   const [cardsOnTable, setCardsOnTable] = useState([]);
@@ -153,9 +155,6 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
         axios.post(`${base}/getBigBlindSeat`,    { code: gameCode }),
         axios.post(`${base}/getTurnEndTime`,    { code: gameCode }),
       ]);
-      console.log("currentTurnSeat:", rSeat.data.seat);
-      console.log("player seats:", rPlayers.data.players.map(p => ({ seat: p.seat , username: p.username})));
-      console.log("endTime z API:", rEndTime.data.endTime);
 
       setPlayers(rPlayers.data.players ?? []);
       setCurrentTurnSeat(rSeat.data.seat);
@@ -182,12 +181,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
       await fetchAll();
     });
 
-    socket.on("player_moved", (data) => {
-      console.log(`[WS] player_moved — Gracz ${data.playerId} wykonał: ${data.action}${data.raiseValue ? ` (${data.raiseValue})` : ''}`);
-    });
-
     socket.on("hand_over", async (data) => {
-      console.log("[WS] hand_over — zwycięzcy rozdania:", data.winners);
       setHandWinners(data.winners);
       setFrozenCardsOnTable(cardsOnTableRef.current);
       setTimeout(async () => {
@@ -198,7 +192,6 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
     });
 
     socket.on("game_over", async (data) => {
-      console.log("KONIEC GRY", data);
       setGameOverPlayers(players);
       setGameOverData(data);
       await fetchAll();
@@ -218,6 +211,13 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
     if (!socket || !myId || !gameCode) return;
     socket.emit("move", { action, gameCode, playerId: myId, raiseValue });
   }, [socket, myId, gameCode]);
+
+  const handleFinishGame = async () => {
+    const res = await axios.post(`http://${window.location.hostname}:8080`,   { code: gameCode });
+    if (res.data.success) {
+      router.push("/");
+    }
+  }
 
   const getPlayerAtSeat = (seat) => players.find((p) => p.seat === seat) ?? null;
 
@@ -258,7 +258,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
       blind: player.seat == smallBlindSeat ? "small" : 
       player.seat == bigBlindSeat ? "big" :
       undefined,
-      endTime: isCurrentTurn ? timerEndTime : undefined
+      endTime: isCurrentTurn && !isShowdown ? timerEndTime : undefined
     }
   }
   
@@ -293,7 +293,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
               </div>
             ))}
             <button
-              onClick={() => setGameOverData(null)}
+              onClick={handleFinishGame}
               className="mt-8 px-8 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl transition-colors"
             >
               Zamknij

@@ -49,7 +49,6 @@ export default function Lobby() {
     useEffect(() => {
         if (!code) return;
         if (!playerId) return;
-        console.log("Emitting auth event with playerId:", playerId);
         socket.emit("auth", playerId);
 
         socket.on("refresh_list", fetchPlayers);
@@ -58,7 +57,6 @@ export default function Lobby() {
         });
 
         return () => {
-            console.log("cleaning up");
             socket.off("refresh_list", fetchPlayers);
             socket.off("game_started");
         };
