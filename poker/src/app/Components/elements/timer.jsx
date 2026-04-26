@@ -1,24 +1,24 @@
+"use client"
 import React, { useState, useEffect } from 'react';
 
-export default function Timer({expiresAt}) {
+export default function Timer({endTime, isFolded}) {
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
+    if (!endTime) return;
     const calculateTime = () => {
-      // Obliczamy różnicę między końcem a chwilą obecną
-      const difference = new Date(expiresAt) - new Date();
+      const difference = new Date(Number(endTime)) - Date.now();
       const seconds = Math.max(0, Math.floor(difference / 1000));
       setTimeLeft(seconds);
     };
 
-    // Pierwsze wywołanie
     calculateTime();
 
     const interval = setInterval(calculateTime, 1000);
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [endTime]);
 
   return (
-    <h1 className="text-white text-xl font-black text-center mt-1">{timeLeft}</h1>
+    <h1 className={`${isFolded ? 'text-gray-600' : 'text-white'} text-xl font-black text-center mt-1 pointer-events-none`}>{timeLeft}</h1>
   );
 };

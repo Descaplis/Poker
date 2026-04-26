@@ -1,9 +1,7 @@
 'use client'
 import { useRef, useEffect } from "react";
 
-export default function RaiseBtn({show}){
-    if(!show) return;
-
+export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, onClick}){
     const modal = useRef();
 
     const popUp = () => {
@@ -24,6 +22,8 @@ export default function RaiseBtn({show}){
         return () => window.removeEventListener('click', handleClickOutside);
     }, []);
 
+    if(!show) return null;
+
     return (
         <div className="">
             <button className="w-[10vw] h-[8vh] bg-radial-[at_20%_25%] from-amber-500 via-orange-400 via-45% to-yellow-300 to-90% rounded-2xl cursor-pointer
@@ -34,8 +34,13 @@ export default function RaiseBtn({show}){
                 <div className="relative flex flex-col bg-radial-[at_20%_25%] from-slate-950 to-indigo-950
                     m-auto p-[1%] border border-black w-[20vw] shadow-xl/30 rounded-b-2xl animate-popup">
                     <label className="font-black text-white text-lg">O ile chcesz podbić:</label>
-                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl text-black" min={0}/>
-                    <button className="mx-auto mt-4 bg-red-900 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer">Potwierdź</button>
+                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl text-black" max={maxRaise} value={raiseAmount}
+                     onChange={(e) => setRaiseAmount(Math.min(maxRaise, Number(e.target.value)))}/>
+                    <button className="mx-auto mt-4 bg-red-900 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        onClick("raise", raiseAmount);
+                    }}>Potwierdź</button>
                 </div>
             </div>
         </div>

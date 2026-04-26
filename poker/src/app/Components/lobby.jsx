@@ -6,7 +6,7 @@ import LobbyPlayer from "./elements/lobbyPlayer";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:8080");
+const socket = io("http://" + window.location.hostname + ":8080");
 
 export default function Lobby() {
     const [players, setPlayers] = useState([]);
@@ -18,7 +18,7 @@ export default function Lobby() {
     const fetchPlayers = async () => {
         if (!code) return;
         try {
-            const res = await axios.post("http://localhost:8080/getListOfPlayers", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/getListOfPlayers", {
                 code: code
             });
             setPlayers(res.data.players);
@@ -28,9 +28,13 @@ export default function Lobby() {
     };
 
     const handleLeave = async () => {
-        socket.emit("leave_room", playerId);
-        sessionStorage.clear();
+        socket.emit("leave_room", playerId, code);
+        localStorage.clear();
         router.push("/");
+    }
+
+    const handleStart = async () => {
+        socket.emit("start_game", code);
     }
 
     useEffect(() => {
@@ -48,10 +52,13 @@ export default function Lobby() {
         socket.emit("auth", playerId);
 
         socket.on("refresh_list", fetchPlayers);
+        socket.on("game_started", () => {
+            router.push("/game");
+        });
 
         return () => {
-            console.log("cleaning up");
             socket.off("refresh_list", fetchPlayers);
+            socket.off("game_started");
         };
     }, [code, playerId]);
 
@@ -76,7 +83,9 @@ export default function Lobby() {
                                 w-100 p-4 m-3 border-4 border-black self-start rounded-xl text-5xl font-black cursor-pointer">Wyjdź</button>
                                 
                                 {isHost == 'true' ? (
-                                    <button type="button" className="text-gray-200 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 
+                                    <button type="button"
+                                    onClick={handleStart}
+                                    className="text-gray-200 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 
                                         hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-red-700 dark:focus:ring-red-800 
                                         shadow-lg shadow-red-500/50 dark:shadow-lg dark:shadow-red-800/80 rounded-base text-center
                                         w-100 p-4 m-3 border-3 border-red-800 self-start rounded-xl text-5xl font-black cursor-pointer">Start</button>
