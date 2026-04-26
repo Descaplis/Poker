@@ -4,15 +4,9 @@ import RaiseBtn from "./elements/RaiseBtn";
 import CheckBtn from "./elements/CheckBtn";
 import FoldBtn from "./elements/FoldBtn";
 import AllInBtn from "./elements/AllInBtn";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
-import Timer from "./elements/timer";
-
-const game = {
-	mainPot: 100,
-	sidePots: [100,100,100]
-}
 
 const convertCardNames = (myCards) => {
   myCards = myCards.map((card) => {
@@ -100,6 +94,13 @@ export default function theGame() {
 
   // hand over
   const [handWinners, setHandWinners] = useState([]);
+  const cardsOnTableRef = useRef([]);
+
+  useEffect(() => {
+    cardsOnTableRef.current = cardsOnTable;
+  }, [cardsOnTable]);
+
+const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
   //  session data
   const [myId, setMyId] = useState(null);
@@ -174,12 +175,10 @@ export default function theGame() {
     if (!socket) return;
 
     socket.on("next_turn", async (data) => {
-      console.log(`[WS] next_turn — timer kończy się: ${new Date(data.endTime).toLocaleTimeString()}`);
       await fetchAll();
     });
 
-    socket.on("next_round", async () => {
-      console.log(`[WS] next_round — karty na stole aktualizowane`);
+    socket.on("next_round", async (data) => {
       await fetchAll();
     });
 
@@ -189,10 +188,12 @@ export default function theGame() {
 
     socket.on("hand_over", async (data) => {
       console.log("[WS] hand_over — zwycięzcy rozdania:", data.winners);
-      await fetchAll();
       setHandWinners(data.winners);
-      setTimeout(() => {
+      setFrozenCardsOnTable(cardsOnTableRef.current);
+      setTimeout(async () => {
         setHandWinners([]);
+        setFrozenCardsOnTable([]);
+        await fetchAll();
       }, 10000);
     });
 
@@ -250,7 +251,7 @@ export default function theGame() {
       balance: player.balance,
       bet: player.bet,
       cards: cards,
-      isAllIn: player.hasGoneAllIn,
+      isAllIn: player.hasgoneallin,
       isFolded: player.is_folded,
       isCurrentTurn: isCurrentTurn,
       isWinner: isWinner,

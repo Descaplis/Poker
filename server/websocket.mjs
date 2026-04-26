@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove, SetTurnEndTime } from './db.mjs';
+import { startGame, Raise, Fold, Check, GetMaximumRaiseValue, GetListOfPlayers, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, LeaveGame, GetUserById, GetGameById, GetTimeForMove, SetTurnEndTime, GetGameStatus } from './db.mjs';
 import { allowedOrigins } from "./index.mjs";
 
 const createWebsocketServer = (httpServer) => {
