@@ -51,10 +51,10 @@ export default function CreateLobby() {
                 username: username
             });
             console.log(res.data.game);
-            localStorage.setItem("playerId", res.data.game.playerId);
-            localStorage.setItem("username", username);
-            localStorage.setItem("code", res.data.game.code);
-            localStorage.setItem("isHost", true);
+            sessionStorage.setItem("playerId", res.data.game.playerId);
+            sessionStorage.setItem("username", username);
+            sessionStorage.setItem("code", res.data.game.code);
+            sessionStorage.setItem("isHost", true);
             router.push(`/lobby`);
         } catch (error) {
             showAlert("Wystąpił błąd serwera!");

@@ -38,10 +38,10 @@ export default function JoinLobby(){
 
             if (res.data.result.success == true) {
                 console.log(`Successfully ${username} with id ${res.data.result.playerId} joined the game with code ${code}`);
-                localStorage.setItem("playerId", res.data.result.playerId);
-                localStorage.setItem("username", username);
-                localStorage.setItem("code", code);
-                localStorage.setItem("isHost", false);
+                sessionStorage.setItem("playerId", res.data.result.playerId);
+                sessionStorage.setItem("username", username);
+                sessionStorage.setItem("code", code);
+                sessionStorage.setItem("isHost", false);
                 router.push("/lobby");
             } else {
                 showAlert(res.data.result.message);

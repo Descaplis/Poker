@@ -102,14 +102,41 @@ export default function theGame() {
   const [handWinners, setHandWinners] = useState([]);
 
   //  session data
-  const myId = localStorage.getItem("playerId");
-  const gameCode = localStorage.getItem("code");
+  const [myId, setMyId] = useState(null);
+  const [gameCode, setGameCode] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   // data about current turn
-  const myPlayer = players.find((p) => p.id === myId) ?? null;
-  const isMyTurn = myPlayer?.seat === currentTurnSeat;
+  const myPlayer = players.find((p) => String(p.id) === String(myId)) || null;
+  const isMyTurn = myPlayer != null && currentTurnSeat != null && Number(myPlayer.seat) === Number(currentTurnSeat) && !myPlayer.is_folded && !myPlayer.hasGoneAllIn;
   const maxRaise = myPlayer?.balance ?? 0;
 
+
+  // useEffect for setting session data
+  useEffect(() => {
+    const savedId = sessionStorage.getItem("playerId");
+    const savedGameCode = sessionStorage.getItem("code");
+    if (savedId) {
+      setMyId(savedId);
+      setGameCode(savedGameCode);
+    }
+    setIsMounted(true);
+  }, []);
+
+  // useEffect for setting up socket.io
+  useEffect(() => {
+    if (!isMounted || !myId || !gameCode) return;
+
+    const socketConn = io("http://" + window.location.hostname + ":8080");
+    socketConn.on("connect", () => {
+      socketConn.emit("auth", myId);
+    });
+    setSocket(socketConn);
+    return () => {
+      socketConn.disconnect();
+    };
+  }, [isMounted, myId, gameCode]);
+  
   const fetchAll = useCallback(async () => {
     if (!gameCode) return;
     try {
@@ -140,21 +167,8 @@ export default function theGame() {
     } catch (e) {
       console.error('fetchAll error', e);
     }
-  }, [gameCode]);
+  }, [gameCode, myId]);
 
-
-  // useEffect for setting up socket.io
-  useEffect(() => {
-    const socketConn = io("http://" + window.location.hostname + ":8080");
-    socketConn.on("connect", () => {
-      socketConn.emit("auth", myId);
-    });
-    setSocket(socketConn);
-    return () => {
-      socketConn.disconnect();
-    };
-  }, []);
-  
   // useEffect for setting up socket listeners and fetching initial data
   useEffect(() => {
     if (!socket) return;
@@ -198,9 +212,9 @@ export default function theGame() {
     fetchAll();
   }, [socket]);
 
+
   const handleMove = useCallback((action, raiseValue) => {
     if (!socket || !myId || !gameCode) return;
-    console.log(`Wysyłam ruch: ${action}${raiseValue ? ` (${raiseValue})` : ''}`);
     socket.emit("move", { action, gameCode, playerId: myId, raiseValue });
   }, [socket, myId, gameCode]);
 
@@ -250,6 +264,13 @@ export default function theGame() {
   const mainPot = pots.find((p) => p.pot_type == "MAIN");
   const sidePots = pots.filter((p) => p.pot_type == "SIDE");
   const tableCards = convertCardNames(cardsOnTable);
+
+  // Don't render anything until we know the player's ID and game code (errors with sessionStorage = null)
+  if (!isMounted) {
+    return <div className="min-h-screen w-full bg-radial-[at_50%_55%] from-gray-400 from-20% via-gray-600 via-55% to-gray-900 flex items-center justify-center p-4 relative">
+      <p className="text-white text-center mt-20">Ładowanie...</p>
+    </div>;
+  }
 
 	return (
 		<div className="min-h-screen w-full bg-radial-[at_50%_55%] from-gray-400 from-20% via-gray-600 via-55% to-gray-900 flex items-center justify-center p-4 relative">

@@ -38,9 +38,9 @@ export default function Lobby() {
     }
 
     useEffect(() => {
-        const storedCode = localStorage.getItem("code");
-        const storedPlayerId = localStorage.getItem("playerId");
-        const storedIsHost = localStorage.getItem("isHost");
+        const storedCode = sessionStorage.getItem("code");
+        const storedPlayerId = sessionStorage.getItem("playerId");
+        const storedIsHost = sessionStorage.getItem("isHost");
         setCode(storedCode);
         setPlayerId(storedPlayerId);
         setIsHost(storedIsHost);
