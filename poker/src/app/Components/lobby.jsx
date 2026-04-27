@@ -6,14 +6,26 @@ import LobbyPlayer from "./elements/lobbyPlayer";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-const socket = io("http://" + window.location.hostname + ":8080");
-
 export default function Lobby() {
+    const [socket, setSocket] = useState(null);
     const [players, setPlayers] = useState([]);
     const [code, setCode] = useState("");
     const [playerId, setPlayerId] = useState("");
     const [isHost, setIsHost] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+    if (!playerId) return;
+
+    const socketConn = io("http://" + window.location.hostname + ":8080");
+    socketConn.on("connect", () => {
+      socketConn.emit("auth", playerId);
+    });
+    setSocket(socketConn);
+    return () => {
+      socketConn.disconnect();
+    };
+  }, [playerId]);
 
     const fetchPlayers = async () => {
         if (!code) return;
@@ -47,6 +59,7 @@ export default function Lobby() {
     }, []);
 
     useEffect(() => {
+        if (!socket) return;
         if (!code) return;
         if (!playerId) return;
         socket.emit("auth", playerId);
@@ -60,7 +73,7 @@ export default function Lobby() {
             socket.off("refresh_list", fetchPlayers);
             socket.off("game_started");
         };
-    }, [code, playerId]);
+    }, [socket, code, playerId]);
 
     return (
         <div className="max-w-full h-240 bg-gray-800">

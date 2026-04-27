@@ -34,8 +34,8 @@ const createWebsocketServer = (httpServer) => {
                 const currentPlayer = players.find(p => p.seat == currentSeat);
                 if (currentPlayer) {
                     try {
-                        await Fold(code, currentPlayer.id);
-                        nextTurn(code);
+                        const res = await Fold(code, currentPlayer.id);
+                        await handleMoveResult(res, code);
                     } catch (e) {
                         console.error("Auto-fold failed", e);
                     }
@@ -45,7 +45,6 @@ const createWebsocketServer = (httpServer) => {
     }
 
     const handleMoveResult = async (res, code) => {
-        console.log("handleMoveResult:", JSON.stringify(res), "code:", code);
         if (!res) {
             console.log("Brak res, nextTurn");
             await nextTurn(code);
@@ -82,7 +81,6 @@ const createWebsocketServer = (httpServer) => {
                 await nextTurn(code);
             }
         } else {
-            console.log("Następna tura");
             await nextTurn(code);
         }
     }
@@ -156,31 +154,30 @@ const createWebsocketServer = (httpServer) => {
             await handleMoveResult(res, moveData.gameCode);
         });
 
-        socket.on("disconnect", async () => {
-            console.log("A user disconnected");
-            if (socket.userData) {
-                console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} has disconnected from the websocket. Waiting 5 seconds before removing from the game...`);
+        // socket.on("disconnect", async () => {
+        //     console.log("A user disconnected");
+        //     if (socket.userData) {
+        //         console.log(`Player ${socket.userData.username} with id ${socket.userData.playerId} has disconnected from the websocket. Waiting 5 seconds before removing from the game...`);
 
-                disconnectTimeouts[socket.userData.playerId] = setTimeout(async () => {
-                    try {
-                        const {playerId, code, username} = socket.userData;
-                        const gameStatus = await GetGameStatus(code);
-                        if (gameStatus == "waiting") {
-                            await LeaveGame(playerId);
-                            io.to(code).emit("refresh_list");
-                            delete disconnectTimeouts[playerId];
-                            return;
-                        } else {
-                            io.to(code).emit("player_disconnected", {playerId, username});
-                            delete disconnectTimeouts[playerId];
-                            return;
-                        }
-                    } catch (err) {
-                        console.error("An error occured during deleting player: ", err);
-                    }
-                }, 5000);
-            }
-        });
+        //         disconnectTimeouts[socket.userData.playerId] = setTimeout(async () => {
+        //             try {
+        //                 const {playerId, code, username} = socket.userData;
+        //                 const gameStatus = await GetGameStatus(code);
+        //                 if (gameStatus == "waiting") {
+        //                     await LeaveGame(playerId);
+        //                     io.to(code).emit("refresh_list");
+        //                     delete disconnectTimeouts[playerId];
+        //                     return;
+        //                 } else {
+        //                     delete disconnectTimeouts[playerId];
+        //                     return;
+        //                 }
+        //             } catch (err) {
+        //                 console.error("An error occured during deleting player: ", err);
+        //             }
+        //         }, 5000);
+        //     }
+        // });
     }); 
 }
 

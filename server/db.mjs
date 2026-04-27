@@ -224,12 +224,15 @@ async function BetBlinds(gameCode) {
   
   // Bet the blinds
   for (const player of players) {
-    let betValue = player.seat === game.small_blind_seat ? game.small_blind_value : game.small_blind_value * 2;
-    query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $1, last_move = 'blind' WHERE game_id = $2 AND seat = $3`,
-      values: [betValue, game.id, player.seat]
-    }
-    await pool.query(query);
+    const wantedBet = player.seat == game.small_blind_seat ? game.small_blind_value : game.small_blind_value * 2;
+    const actualBet = Math.min(wantedBet, Number(player.balance));
+    const newBalance = Number(player.balance) - actualBet;
+    const isAllIn = newBalance == 0;
+
+    await pool.query(
+      `UPDATE players SET bet = $1, balance = $2, hasGoneAllIn = $3, last_move = 'blind' WHERE game_id = $4 AND seat = $5`,
+      [actualBet, newBalance, isAllIn, game.id, player.seat]
+    );
   }
 
   query = {
@@ -358,23 +361,29 @@ async function Raise(gameCode, playerId, raiseAmount) {
     };
     const player = await client.query(query).then(res => res.rows[0]);
 
-    if (!player) throw new Error("Nie znaleziono gracza na tym miejscu.");
-    if (player.balance < raiseAmount) throw new Error("Gracz nie ma wystarczająco żetonów.");
+    if (!player) throw new Error("Nie znaleziono gracza.");
 
-    const targetTotalBet = Number(game.current_bet) + Number(raiseAmount);
-    const amountToSubtract = targetTotalBet - Number(player.bet);
-    
-    const isAllIn = targetTotalBet >= Number(player.balance);
+    const currentBet = Number(game.current_bet);
+    const playerBet = Number(player.bet);
+    const balance = Number(player.balance);
+
+    // raiseAmount - how much money player wants to bet (not how much he wants the total bet to bet
+    const targetBet = currentBet + Number(raiseAmount);
+    const amountToPut = Math.min(targetBet - playerBet, balance);
+    const newPlayerBet = playerBet + amountToPut;
+    const newBalance = balance - amountToPut;
+    const isAllIn = newBalance == 0;
+    const newCurrentBet = Math.max(currentBet, newPlayerBet);
 
     query = {
-      text: `UPDATE players SET bet = $1, balance = balance - $2, hasGoneAllIn = ($3 = 0), last_move = 'raise' WHERE id = $4`,
-      values: [targetTotalBet, amountToSubtract, player.balance - amountToSubtract, playerId]
+      text: `UPDATE players SET bet = $1, balance = $2, hasGoneAllIn = $3, last_move = 'raise' WHERE id = $4`,
+      values: [newPlayerBet, newBalance, isAllIn, playerId]
     };
     await client.query(query);
 
     query = {
       text: `UPDATE games SET current_bet = $1 WHERE id = $2`,
-      values: [targetTotalBet, game.id]
+      values: [newCurrentBet, game.id]
     }
     await client.query(query);
 
@@ -419,7 +428,6 @@ async function Check(gameCode, playerId) {
   const playerBalance = Number(player.balance);
 
   if (currentBet === 0 || playerBet === currentBet) {
-    // Prawdziwy check — nic nie płaci
     let query = { 
       text: `UPDATE players SET last_move = 'check' WHERE id = $1`,
       values: [playerId] 
@@ -559,10 +567,11 @@ async function EndRoundIfCan(game) {
   const currentBet = Number(freshGame.current_bet);
   const activePlayers = players.filter(player => !player.is_folded && (Number(player.balance) > 0 || player.hasGoneAllIn));
   
-  const allPlayersActed = activePlayers.every(p => 
-    (Number(p.bet) == currentBet || p.hasGoneAllIn)
-  ) && activePlayers.every(p => 
-    p.last_move != null && p.last_move !== 'blind' || p.hasGoneAllIn
+  // nowe
+  const allPlayersActed = activePlayers.every(p =>
+  (Number(p.bet) == currentBet || p.hasGoneAllIn)
+  ) && activePlayers.every(p =>
+    p.hasGoneAllIn || (p.last_move != null && p.last_move != 'blind')  // ← poprawna kolejność
   );
   const nonFoldedPlayers = players.filter(p => !p.is_folded);
 
@@ -636,6 +645,7 @@ async function DetermineWinner(game) {
   let winners;
 
   const client = await pool.connect();
+  let uniqueWinners;
   try {
     await client.query("BEGIN");
 
@@ -652,6 +662,7 @@ async function DetermineWinner(game) {
     }
     const freshGame = await client.query(query).then(res => res.rows[0]);
 
+    let allWinners = [];
     for (const pot of pots) {
       // Find players who didn't fold
       query = {
@@ -661,19 +672,28 @@ async function DetermineWinner(game) {
         values: [pot.id]
       }
       const eligiblePlayers = await client.query(query).then(res => res.rows);
-      console.log("Eligible players:", eligiblePlayers);
+
+      const nonFoldedEligiblePlayers = eligiblePlayers.filter(p => !p.is_folded);
 
       if (eligiblePlayers.length == 0) continue;
-
-      const playersHands = eligiblePlayers
-        .filter(player => !player.is_folded)
+      if (nonFoldedEligiblePlayers.length == 1) {
+        // Only one player didn't fold, he wins the whole pot
+        winners = [{ 
+            player: nonFoldedEligible[0], 
+            hand: { name: "Walkower (wszyscy pas)" } 
+        }];
+      } else {
+        const playersHands = nonFoldedEligiblePlayers
         .map(player => {
           const hand = Hand.solve([...player.cards, ...freshGame.cards_on_table]);
           return { player, hand };
         });
 
-      const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
-      winners = playersHands.filter(ph => winningHands.some(wh => wh === ph.hand));
+        const winningHands = Hand.winners(playersHands.map(ph => ph.hand));
+        winners = playersHands.filter(ph => winningHands.some(wh => wh == ph.hand));
+      }
+
+      allWinners.push(...winners);
       console.log("Winners:", winners);
 
       const share = Math.floor(pot.value / winners.length);
@@ -688,6 +708,8 @@ async function DetermineWinner(game) {
         await client.query(query);
       }
     }
+    uniqueWinners = allWinners.filter(
+    (w, i, arr) => arr.findIndex(x => x.player.id === w.player.id) === i);
 
     // Clear pots and reset players
     await client.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [game.id]);
@@ -746,7 +768,7 @@ async function DetermineWinner(game) {
 
   console.log(`Nowe rozdanie: smallBlind=${nextSmallBlind}, bigBlind=${nextBigBlind}, firstTurn=${nextFirstTurn}`);
 
-  return { winners, handOver: true };
+  return { winners: winners, allPlayersCards: allPlayers.map(p => ({id: p.id, cards: p.cards})), handOver: true };
 }
 
 // FUNCTIONS TO GET CERTAIN VALUES
