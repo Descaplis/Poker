@@ -50,18 +50,38 @@ const createWebsocketServer = (httpServer) => {
             await nextTurn(code);
             return;
         }
-
+        /*
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        TODO: sending timer and doing other things stops on game over
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        ---------------------------------------------------------------------------------------------------------------------
+        */
         if (res.roundFinished) {
             if (res.gameOver) {
                 // The whole game is over
-                console.log("Koniec gry! Zwycięzcy:", res.winners);
-                io.to(code).emit("game_over", {
+                io.to(code).emit("hand_over", {
                     winners: res.winners.map(w => ({
                         username: w.player?.username || w.username,
                         id: w.player?.id || w.id,
                         rank: w.hand?.name
                     }))
                 });
+
+                setTimeout(() => {
+                    console.log("Koniec gry! Zwycięzcy:", res.winners);
+                    io.to(code).emit("game_over", {
+                        winners: res.winners.map(w => ({
+                            username: w.player?.username || w.username,
+                            id: w.player?.id || w.id,
+                            rank: w.hand?.name
+                        }))
+                    });
+                }, 10000)
             } else if (res.handOver) {
                 // Hand is over, the game goes on — show hand winners, then start a new hand
                 console.log("Koniec rozdania! Zwycięzcy rozdania:", res.winners);

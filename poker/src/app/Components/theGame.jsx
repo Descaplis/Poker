@@ -208,7 +208,6 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
   }, [socket, myId, gameCode]);
 
   const handleFinishGame = async () => {
-    const res = await axios.post(`http://${window.location.hostname}:8080/deleteGame`,   { code: gameCode });
     router.push("/");
   }
 
