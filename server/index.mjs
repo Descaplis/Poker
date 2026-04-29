@@ -5,7 +5,7 @@ import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, 
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
-export const allowedOrigins = ["http://localhost:3000", "http://192.168.88.14:3000", "http://192.168.88.29:3000"];
+export const allowedOrigins = ["http://localhost:3000", "http://192.168.88.14:3000", "http://192.168.88.29:3000", "http://10.30.30.72:3000"];
 
 const app = express();
 app.use(express.json());

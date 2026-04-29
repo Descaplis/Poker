@@ -111,7 +111,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
   // data about current turn
   const myPlayer = players.find((p) => String(p.id) === String(myId)) || null;
-  const isMyTurn = myPlayer != null && currentTurnSeat != null && Number(myPlayer.seat) === Number(currentTurnSeat) && !myPlayer.is_folded && !myPlayer.hasGoneAllIn;
+  let isMyTurn = myPlayer != null && currentTurnSeat != null && Number(myPlayer.seat) === Number(currentTurnSeat) && !myPlayer.is_folded && !myPlayer.hasGoneAllIn;
   const maxRaise = myPlayer?.balance ?? 0;
 
 
@@ -183,6 +183,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
     socket.on("hand_over", async (data) => {
       setHandWinners(data.winners);
+      isMyTurn = false;
       setFrozenCardsOnTable(cardsOnTableRef.current);
       setTimeout(async () => {
         setHandWinners([]);
@@ -196,12 +197,6 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
       setGameOverData(data);
       await fetchAll();
     });
-
-    socket.on("player_disconnected", async (data) => {
-      alert(`Gracz ${data.username} rozłączył się.`);
-      await fetchAll();
-    });
-
     // First fetch
     fetchAll();
   }, [socket]);
@@ -213,10 +208,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
   }, [socket, myId, gameCode]);
 
   const handleFinishGame = async () => {
-    const res = await axios.post(`http://${window.location.hostname}:8080`,   { code: gameCode });
-    if (res.data.success) {
-      router.push("/");
-    }
+    router.push("/");
   }
 
   const getPlayerAtSeat = (seat) => players.find((p) => p.seat === seat) ?? null;
@@ -237,7 +229,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
     const isMe = player.id == myId;
     const isCurrentTurn = player.seat == currentTurnSeat;
-    const isWinner = handWinners.some(w => w.id === player.id);
+    const isWinner = handWinners.some(w => w.id == player.id);
     const isShowdown = handWinners.length > 0;
 
     let cards;
@@ -323,8 +315,8 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
       {/* Raise and check buttons */}
 			<div className="absolute flex flex-row gap-2 bottom-0 left-0 z-1 m-2">
-				<RaiseBtn show={isMyTurn} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} onClick={handleMove} />
-				<CheckBtn show={isMyTurn} onClick={() => handleMove("check", undefined)}/>
+				<RaiseBtn show={isMyTurn && handWinners.length == 0} maxRaise={maxRaise} raiseAmount={raiseAmount} setRaiseAmount={setRaiseAmount} onClick={handleMove} />
+				<CheckBtn show={isMyTurn && handWinners.length == 0} onClick={() => handleMove("check", undefined)}/>
 			</div>
 
 			{/* Main game container */}
@@ -408,11 +400,11 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 			</div>
 			<div className="absolute flex flex-row bottom-0 right-0 gap-2 z-1 m-2">
         <FoldBtn
-          show={isMyTurn}
+          show={isMyTurn && handWinners.length == 0}
           onClick={() => handleMove("fold", undefined)}
         />
         <AllInBtn
-          show={isMyTurn}
+          show={isMyTurn && handWinners.length == 0}
           // All-in = raise o całe saldo gracza
           onClick={() => handleMove("raise", maxRaise)}
         />
