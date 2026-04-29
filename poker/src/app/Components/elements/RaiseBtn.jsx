@@ -12,6 +12,8 @@ export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, o
         modal.current.style.display = "none";
     }
 
+    const raiseAmountConverted = () => raiseAmount == 0 ? "" : raiseAmount;
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (modal.current && event.target === modal.current) {
@@ -34,7 +36,11 @@ export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, o
                 <div className="relative flex flex-col bg-radial-[at_20%_25%] from-slate-950 to-indigo-950
                     m-auto p-[1%] border border-black w-[20vw] shadow-xl/30 rounded-b-2xl animate-popup">
                     <label className="font-black text-white text-lg">O ile chcesz podbić:</label>
-                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl text-black" max={maxRaise} value={raiseAmount}
+                    <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl text-black" min={0} max={maxRaise} value={raiseAmountConverted()} onKeyDown={(e) => {
+                        if (!(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].includes(e.key))) {
+                            e.preventDefault();
+                        }
+                    }}
                      onChange={(e) => setRaiseAmount(Math.min(maxRaise, Number(e.target.value)))}/>
                     <button className="mx-auto mt-4 bg-red-900 p-2 w-[10vw] text-white font-bold rounded-xl border-2 border-black cursor-pointer"
                     onClick={(e) => {
