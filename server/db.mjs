@@ -217,13 +217,14 @@ async function BetBlinds(gameCode) {
 
   // Get the players
   query = {
-    text: `SELECT * FROM players WHERE game_id = $1 AND (seat = $2 OR seat = $3)`,
+    text: `SELECT * FROM players WHERE game_id = $1 AND (seat = $2 OR seat = $3) AND balance > 0`,
     values: [game.id, game.small_blind_seat, game.big_blind_seat]
   }
   const players = await pool.query(query).then(res => res.rows);
   
   // Bet the blinds
   for (const player of players) {
+    if (Number(player.balance <= 0)) continue;
     const wantedBet = player.seat == game.small_blind_seat ? game.small_blind_value : game.small_blind_value * 2;
     const actualBet = Math.min(wantedBet, Number(player.balance));
     const newBalance = Number(player.balance) - actualBet;
@@ -688,7 +689,7 @@ async function DetermineWinner(game) {
     }
     const pots = await client.query(query).then(res => res.rows);
     console.log("Pots:", pots);
-    
+
     query = {
       text: `SELECT * FROM games WHERE id = $1`,
       values: [game.id]
@@ -711,7 +712,7 @@ async function DetermineWinner(game) {
       if (eligiblePlayers.length == 0) continue;
       if (nonFoldedEligiblePlayers.length == 1) {
         // Only one player didn't fold, he wins the whole pot
-        winners = [{ 
+        winners = [{
             player: nonFoldedEligiblePlayers[0], 
             hand: { name: "Walkower (wszyscy pas)" } 
         }];
@@ -741,8 +742,18 @@ async function DetermineWinner(game) {
         await client.query(query);
       }
     }
+
     uniqueWinners = allWinners.filter(
     (w, i, arr) => arr.findIndex(x => x.player.id === w.player.id) === i);
+
+    if (pots.length === 0) {
+      // Znajdź jedynego niesfoldowanego gracza
+      const nonFolded = await client.query(
+          `SELECT * FROM players WHERE game_id = $1 AND is_folded = FALSE`,
+          [game.id]
+      ).then(res => res.rows);
+      uniqueWinners = nonFolded.map(p => ({ player: p, hand: { name: "Walkower" } }));
+    }
 
     // Clear pots and reset players
     await client.query(`DELETE FROM pot_players WHERE pot_id IN (SELECT id FROM pots WHERE game_id = $1)`, [game.id]);
@@ -765,7 +776,7 @@ async function DetermineWinner(game) {
 
   if (remainingPlayers.length <= 1) {
     console.log("Koniec gry — tylko jeden gracz ma żetony");
-    return { winners, gameOver: true };
+    return { winners: uniqueWinners, gameOver: true };
   }
 
   // The game goes on, move the blinds and start new hand
@@ -778,8 +789,8 @@ async function DetermineWinner(game) {
     `SELECT * FROM games WHERE id = $1`, [game.id]
   ).then(res => res.rows[0]);
 
-  const nextSmallBlind = (Number(freshGame2.small_blind_seat) + 1) % playerCount;
-  const nextBigBlind = (Number(freshGame2.big_blind_seat) + 1) % playerCount;
+  const nextSmallBlind = findNextActiveBlindSeat(Number(freshGame2.small_blind_seat), allPlayers);
+  const nextBigBlind = findNextActiveBlindSeat(nextSmallBlind, allPlayers);
 
   // In first turn: player after big blind except the ones without balance
   let nextFirstTurn = (nextBigBlind + 1) % playerCount;
@@ -801,8 +812,19 @@ async function DetermineWinner(game) {
 
   console.log(`Nowe rozdanie: smallBlind=${nextSmallBlind}, bigBlind=${nextBigBlind}, firstTurn=${nextFirstTurn}`);
 
-  return { winners: winners, allPlayersCards: allPlayers.map(p => ({id: p.id, cards: p.cards})), handOver: true };
+  return { winners: uniqueWinners, allPlayersCards: allPlayers.map(p => ({id: p.id, cards: p.cards})), handOver: true };
 }
+
+const findNextActiveBlindSeat = (fromSeat, players) => {
+  const count = players.length;
+  let seat = (fromSeat + 1) % count;
+  for (let i = 0; i < count; i++) {
+    const candidate = players.find(p => p.seat === seat);
+    if (candidate && Number(candidate.balance) > 0) return seat;
+    seat = (seat + 1) % count;
+  }
+  return fromSeat; // fallback
+  };
 
 // FUNCTIONS TO GET CERTAIN VALUES
 
