@@ -11,9 +11,19 @@ const createWebsocketServer = (httpServer) => {
     const disconnectTimeouts = {};
     const userSessionStore = new Map();
     const autoCheckTimeouts = {};
+    const finishedGames = new Set();
+
+    const cleanupGame = (code) => {
+        finishedGames.add(code);
+        if (autoCheckTimeouts[code]) {
+            clearTimeout(autoCheckTimeouts[code]);
+            delete autoCheckTimeouts[code];
+        }
+    };
 
     const nextTurn = async (code) => {
-        console.log("executing nextTurn for", code)
+        if (finishedGames.has(code)) return;
+
         const timeForMove = await GetTimeForMove(code);
         const endTime = Date.now() + timeForMove * 1000;
 
@@ -28,6 +38,8 @@ const createWebsocketServer = (httpServer) => {
         const seatAtStart = await GetCurrentTurnSeat(code);
 
         autoCheckTimeouts[code] = setTimeout(async () => {
+            if (finishedGames.has(code)) return;
+
             const currentSeat = await GetCurrentTurnSeat(code);
             if (currentSeat == seatAtStart) {
                 const players = await GetListOfPlayers(code);
@@ -45,24 +57,16 @@ const createWebsocketServer = (httpServer) => {
     }
 
     const handleMoveResult = async (res, code) => {
+        if (finishedGames.has(code)) return;
+
         if (!res) {
-            console.log("Brak res, nextTurn");
             await nextTurn(code);
             return;
         }
-        /*
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        TODO: sending timer and doing other things stops on game over
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        ---------------------------------------------------------------------------------------------------------------------
-        */
+        // TODO: sending timer and doing other things stops on game over
         if (res.roundFinished) {
             if (res.gameOver) {
+                cleanupGame(code);
                 // The whole game is over
                 io.to(code).emit("hand_over", {
                     winners: res.winners.map(w => ({
@@ -93,7 +97,11 @@ const createWebsocketServer = (httpServer) => {
                     }))
                 });
                 // Wait 10 seconds for players to see the result
-                setTimeout(() => nextTurn(code), 10000);
+                setTimeout(() => {
+                    if (!finishedGames.has(code)) {
+                        nextTurn(code);
+                    }
+                }, 10000);
             } else {
                 // Next round (flop/turn/river)
                 console.log("Nowa runda, emituję next_round i nextTurn dla:", code);
@@ -147,7 +155,8 @@ const createWebsocketServer = (httpServer) => {
         });
 
         socket.on("move", async (moveData) => {
-            // moveData: action, gameCode, playerId
+            if (finishedGames.has(moveData.gameCode)) return;
+
             let res;
             switch (moveData.action) {
                 case "raise":
