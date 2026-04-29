@@ -83,15 +83,16 @@ export default function CreateLobby() {
                     <label htmlFor="plyrRange" className="text-white text-2xl font-black">Liczba graczy: {plyrCount}</label>
                     <div className="flex justify-center">
                         <h1 className="order-1 text-white text-xl font-black m-3">2</h1>
-                        <input id="plyrRange" name="playerCount" ref={plyrRange} className="order-2 w-210 m-4 accent-green-700 cursor-grab range-lg" 
-                            type="range" min={2} max={8} defaultValue={4} onChange={(e) => setPlyrCount(e.currentTarget.value)}></input>
+                        <input id="plyrRange" name="playerCount" ref={plyrRange} type="range"min={2} max={8} defaultValue={4} 
+                        className="order-2 w-210 m-4 accent-green-700 cursor-grab range-lg"
+                        onChange={(e) => setPlyrCount(e.currentTarget.value)}/>
                         <h1 className="order-3 text-white text-xl font-black m-3">8</h1>
                     </div>
                     <div className="grid columns-2 grid-flow-col">
                         <div className="flex flex-col gap-6 p-7 items-center">
                             <label className="text-white text-xl font-black mt-16">Nazwa użytkownika:</label>
                             <input className="text-black w-120 bg-amber-50 p-2 rounded-xl border-yellow-600 border-solid border-4
-                                focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800" type="text" name="nickName" onChange={(e) => setUsername(e.currentTarget.value)}/>
+                                focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800" type="text" name="nickName" maxLength={24} onChange={(e) => setUsername(e.currentTarget.value)}/>
 
                             <label className="text-white text-xl font-black mt-16">Small blind:</label>
                             <input className="text-black w-120 bg-amber-50 p-2 mb-15 rounded-xl border-yellow-600 border-solid border-4

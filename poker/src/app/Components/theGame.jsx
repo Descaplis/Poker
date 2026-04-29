@@ -70,7 +70,11 @@ const translateRank = (rank) => {
     case "Pair":
       return "Para";
     case "High Card":
-      return "Wysoka karta"
+      return "Wysoka karta";
+    case "Walkower (wszyscy pas)":
+      return "Walkower (wszyscy pas)";
+    default:
+      return rank;
   }
 }
 
@@ -111,7 +115,7 @@ const [frozenCardsOnTable, setFrozenCardsOnTable] = useState([]);
 
   // data about current turn
   const myPlayer = players.find((p) => String(p.id) === String(myId)) || null;
-  let isMyTurn = myPlayer != null && currentTurnSeat != null && Number(myPlayer.seat) === Number(currentTurnSeat) && !myPlayer.is_folded && !myPlayer.hasGoneAllIn;
+  let isMyTurn = myPlayer != null && currentTurnSeat != null && Number(myPlayer.seat) === Number(currentTurnSeat) && !myPlayer.is_folded && !myPlayer.hasgoneallin;
   const maxRaise = myPlayer?.balance ?? 0;
 
 

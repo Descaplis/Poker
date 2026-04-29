@@ -66,8 +66,8 @@ export default function JoinLobby(){
                 <h1 className="bg-clip-text text-transparent bg-linear-to-r from-red-900 from-30% to-amber-300 to-70% text-5xl font-black text-center p-5">Dołącz do lobby</h1>
                 <form id="join-form" className="p-5 flex flex-col items-center">
                     <label className="text-gray-200 font-black text-2xl p-2">Nazwa gracza:</label>
-                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800"
-                        name="nickname" onChange={(e) => setUsername(e.currentTarget.value.trim())}/>
+                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800" maxLength={24} name="nickname" 
+                    onChange={(e) => setUsername(e.currentTarget.value.trim())}/>
                     <label className="text-gray-200 font-black text-2xl p-2 mt-10">Kod pokoju:</label>
                     <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800"
                         name="roomCode" onChange={(e) => setCode(e.currentTarget.value.trim())}/>

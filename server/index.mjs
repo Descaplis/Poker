@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove, GetPots, GetTurnEndTime, DeleteGame } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove, GetPots, GetTurnEndTime, DeleteGame, CheckIfCanStartGame } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
@@ -127,6 +127,15 @@ app.post("/deleteGame", async (req, res) => {
     }
     const success = await DeleteGame(req.body.code);
     res.json({success});
+});
+
+app.post("/getIfCanStartGame", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const canStart = await CheckIfCanStartGame(req.body.code);
+    res.json({canStart});
 });
 
 const httpServer = createServer(app);

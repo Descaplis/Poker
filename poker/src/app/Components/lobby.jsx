@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import LobbyPlayer from "./elements/lobbyPlayer";
+import Error from "./elements/error";
 import axios from "axios";
 import { io } from "socket.io-client";
 
@@ -13,19 +13,25 @@ export default function Lobby() {
     const [playerId, setPlayerId] = useState("");
     const [isHost, setIsHost] = useState(false);
     const router = useRouter();
+    const [errors, setErrors] = useState([]);
+
+    function showAlert(text) {
+        const id = Date.now() + Math.random(); // Math.random() to ensure uniqueness even if two errors occur at the same millisecond
+        setErrors(prevErrors => [...prevErrors, { id: id, text: text }]);
+    }
 
     useEffect(() => {
-    if (!playerId) return;
+        if (!playerId) return;
 
-    const socketConn = io("http://" + window.location.hostname + ":8080");
-    socketConn.on("connect", () => {
-      socketConn.emit("auth", playerId);
-    });
-    setSocket(socketConn);
-    return () => {
-      socketConn.disconnect();
-    };
-  }, [playerId]);
+        const socketConn = io("http://" + window.location.hostname + ":8080");
+        socketConn.on("connect", () => {
+        socketConn.emit("auth", playerId);
+        });
+        setSocket(socketConn);
+        return () => {
+        socketConn.disconnect();
+        };
+    }, [playerId]);
 
     const fetchPlayers = async () => {
         if (!code) return;
@@ -46,7 +52,14 @@ export default function Lobby() {
     }
 
     const handleStart = async () => {
-        socket.emit("start_game", code);
+        const res = await axios.post("http://" + window.location.hostname + ":8080/getIfCanStartGame", {
+            code: code
+        });
+        if (res.data.canStart) {
+            socket.emit("start_game", code);
+        } else {
+            showAlert("Nie można rozpocząć gry. Wymagane są przynajmniej 2 osoby.");
+        }
     }
 
     useEffect(() => {
