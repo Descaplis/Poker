@@ -255,7 +255,7 @@ async function GiveCardsToPlayers(gameCode) {
 
   // Get the players
   query = {
-    text: `SELECT * FROM players WHERE game_id = $1`,
+    text: `SELECT * FROM players WHERE game_id = $1 AND balance > 0`,
     values: [game.id]
   }
   const players = await pool.query(query).then(res => res.rows);
