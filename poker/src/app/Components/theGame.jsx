@@ -29,7 +29,7 @@ export default function theGame() {
 				{/* Środek: Góra, Stół, Dół */}
 				<div className="flex-1 flex flex-col items-center">
 					{/* Gracze na górze (1 i 2) */}
-					<div className="flex justify-evenly w-full max-w-2xl gap-4">
+					<div className="flex justify-center w-full max-w-2xl gap-4">
 						<Player name="Gracz 1" balance={100} isAllIn={false} />
 						<Player name="Gracz 2" blind="small" />
 					</div>
@@ -76,7 +76,7 @@ export default function theGame() {
 					</div>
 
 					{/* Gracze na dole (5 i 6) */}
-					<div className="flex justify-evenly w-full max-w-2xl gap-4">
+					<div className="flex justify-center w-full max-w-2xl gap-4">
 						<Player name="Gracz 6" position="down" cards={["3Pik", "queenKier"]} balance={10} isAllIn={false} />
 						<Player name="Gracz 5" position="down" balance={48} isFolded={false} isWinner={false}/>
 					</div>

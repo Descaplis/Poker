@@ -3,14 +3,14 @@ import Image from "next/image";
 export default function Player({ name, position, cards, balance, endTime, isAllIn, blind, isFolded, isWinner}) {
     return (
         <div>
-            <div className={`w-[16vw] h-[15vh] ${isAllIn ? 'bg-radial-[at_50%_35%] from-amber-400 via-amber-600 to-amber-700 to-75%' : 
+            <div className={`w-[16vw] h-[15vh] p-3 ${isAllIn ? 'bg-radial-[at_50%_35%] from-amber-400 via-amber-600 to-amber-700 to-75%' : 
                 'bg-radial-[at_35%_35%] from-gray-700 to-gray-900 to-75%'} rounded-full border-4 relative ${isFolded ? 'border-black' : 'border-red-700'} p-2
                 ${balance == 0 && !isAllIn && 'opacity-50'}`}>
                 <div className={`flex justify-center absolute ${isWinner ? '-top-25 left-0 right-0' :
                     position == 'down' ? '-top-25 left-0 right-0' :
                     position == 'left' ? 'top-0 left-0 -right-85' :
                     position == 'right' ? 'top-0 -left-85 right-0' : 'top-25 left-0 right-0'}`}>
-                    <div className="w-[4.3vw] h-[12vh] transform-cpu rotate-348">
+                    <div className="w-[4vw] h-[12vh] transform-cpu rotate-348">
                         {
                             cards ? 
                             <Image src={`/images/karty/${cards[0]}.png`} fill alt="card1"/>
@@ -20,7 +20,7 @@ export default function Player({ name, position, cards, balance, endTime, isAllI
                             <Image src="/images/karty/BackCard.png" fill alt="card1"/>
                         }
                     </div>
-                    <div className="w-[4.3vw] h-[12vh] transform-cpu rotate-12">
+                    <div className="w-[4vw] h-[12vh] transform-cpu rotate-12">
                         {
                             cards ? 
                             <Image src={`/images/karty/${cards[1]}.png`} fill alt="card2"/>
