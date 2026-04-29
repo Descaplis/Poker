@@ -1,18 +1,15 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createServer } from "http";
-import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable } from './db.mjs';
+import { CreateGame, JoinGame, startGame, Raise, Fold, Check, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetTimeForMove, GetPots, GetTurnEndTime, DeleteGame } from './db.mjs';
 import express from "express";
 import createWebsocketServer from "./websocket.mjs";
 import cors from "cors";
+export const allowedOrigins = ["http://localhost:3000", "http://192.168.88.14:3000", "http://192.168.88.29:3000"];
 
 const app = express();
 app.use(express.json());
-app.use(cors({origin: "http://localhost:3000"}));
-
-app.get("/",(req, res) => {
-    res.json({message: "Test"});
-});
+app.use(cors({origin:allowedOrigins}));
 
 app.post("/createGame", async (req, res) => {
     console.log(req.body)
@@ -42,94 +39,94 @@ app.post("/getListOfPlayers", async (req, res) => {
     res.json({players});
 });
 
-app.post("/startGame", async (req, res) => {
-    if (req.body.code == null) {
-        res.json({success: false});
-        return;
-    }
-    const result = await startGame(req.body.code);
-    res.json({result})
-});
-
-app.post("/raise", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null || req.body.amount  == null) {
-        res.json({success: false});
-        return;
-    }
-    const raise = await Raise(req.body.code, req.body.seat, req.body.amount);
-    res.json({raise})
-});
-
-app.post("/fold", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const fold = await Fold(req.body.code, req.body.seat);
-    res.json({fold})
-});
-
-app.post("/check", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const check = await Check(req.body.code, req.body.seat);
-    res.json({check})
-});
-
-app.post("/getPlayerCards", async (req, res) => {
-    if (req.body.code == null || req.body.seat == null) {
-        res.json({success: false});
-        return;
-    }
-    const cards = await GetPlayerCards(req.body.code, req.body.seat);
-    res.json({cards})
-});
-
 app.post("/getCurrentTurnSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
     }
     const seat = await GetCurrentTurnSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
-app.get("/getSmallBlindSeat", async (req, res) => {
+app.post("/getCurrentBet", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const currentBet = await GetCurrentBet(req.body.code);
+    res.json({currentBet});
+});
+
+app.post("/getSmallBlindSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
     }
     const seat = await GetSmallBlindSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
-app.get("/getBigBlindSeat", async (req, res) => {
+app.post("/getBigBlindSeat", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
     }
     const seat = await GetBigBlindSeat(req.body.code);
-    res.json({seat})
+    res.json({seat});
 });
 
-app.get("/getCardsOnTable", async (req, res) => {
+app.post("/getCardsOnTable", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
     }
     const cards = await GetCardsOnTable(req.body.code);
-    res.json({cards})
+    res.json({cards});
 });
 
-app.get("/getMaximumRaiseValue", async (req, res) => {
+app.post("/getTimeForMove", async (req, res) => {
     if (req.body.code == null) {
         res.json({success: false});
         return;
     }
-    const maxRaise = await GetMaximumRaiseValue(req.body.code);
+    const time = await GetTimeForMove(req.body.code);
+    res.json({time});
+});
+
+app.post("/getMaximumRaiseValue", async (req, res) => {
+    if (req.body.playerId == null) {
+        res.json({success: false});
+        return;
+    }
+    const maxRaise = await GetMaximumRaiseValue(req.body.playerId);
     res.json({maxRaise});
+});
+
+app.post("/getPots", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const pots = await GetPots(req.body.code);
+    res.json({pots});
+});
+
+app.post("/getTurnEndTime", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const endTime = await GetTurnEndTime(req.body.code);
+    res.json({endTime});
+});
+
+app.post("/deleteGame", async (req, res) => {
+    if (req.body.code == null) {
+        res.json({success: false});
+        return;
+    }
+    const success = await DeleteGame(req.body.code);
+    res.json({success});
 });
 
 const httpServer = createServer(app);

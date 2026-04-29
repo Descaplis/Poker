@@ -31,18 +31,16 @@ export default function JoinLobby(){
         }
 
         try {
-            const res = await axios.post("http://localhost:8080/joinGame", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/joinGame", {
                 code: code,
                 username: username
             });
 
             if (res.data.result.success == true) {
-                console.log(`Successfully ${username} with id ${res.data.result.playerId} joined the game with code ${code}`);
                 sessionStorage.setItem("playerId", res.data.result.playerId);
                 sessionStorage.setItem("username", username);
                 sessionStorage.setItem("code", code);
                 sessionStorage.setItem("isHost", false);
-                console.log("Data stored in sessionStorage, username:" + sessionStorage.getItem("username") + ", playerId: " + sessionStorage.getItem("playerId") + ", code: " + sessionStorage.getItem("code") + ", isHost: " + sessionStorage.getItem("isHost"));
                 router.push("/lobby");
             } else {
                 showAlert(res.data.result.message);
@@ -68,11 +66,9 @@ export default function JoinLobby(){
                 <h1 className="bg-clip-text text-transparent bg-linear-to-r from-red-900 from-30% to-amber-300 to-70% text-5xl font-black text-center p-5">Dołącz do lobby</h1>
                 <form id="join-form" className="p-5 flex flex-col items-center">
                     <label className="text-gray-200 font-black text-2xl p-2">Nazwa gracza:</label>
-                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800"
-                        name="nickname" onChange={(e) => setUsername(e.currentTarget.value)}/>
+                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black" name="nickname" onChange={(e) => setUsername(e.currentTarget.value.trim())}/>
                     <label className="text-gray-200 font-black text-2xl p-2 mt-10">Kod pokoju:</label>
-                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black focus:ring-4 focus:shadow-2xl focus:shadow-amber-500 dark:focus:ring-amber-800"
-                        name="roomCode" onChange={(e) => setCode(e.currentTarget.value)}/>
+                    <input type="text" className="w-100 bg-amber-50 p-2 rounded-xl text-black" name="roomCode" onChange={(e) => setCode(e.currentTarget.value.trim())}/>
                     <div className="flex flex-row mt-20">
                         <button type="button" onClick={joinRoom} className="bg-linear-to-r from-amber-700 via-amber-500 to-amber-600
                             hover:bg-linear-to-br focus:ring-4 focus:shadow-2xl focus:shadow-amber-300 dark:focus:ring-amber-700

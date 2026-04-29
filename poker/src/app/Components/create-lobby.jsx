@@ -37,23 +37,25 @@ export default function CreateLobby() {
             showAlert("Liczba graczy musi być pomiędzy 2 a 8!");
             return;
         }
+        if (Number(initialBalance) < Number(smallBlind)) {
+            showAlert("Small blind nie może być większy od początkowego balansu");
+            return;
+        }
 
         try {
-            const res = await axios.post("http://localhost:8080/createGame", {
+            const res = await axios.post("http://" + window.location.hostname + ":8080/createGame", {
                 playersAmount: plyrCount,
                 timeForMove: timeForMove,
                 smallBlindValue: smallBlind,
                 initialBalance: initialBalance,
                 username: username
             });
-            console.log(res.data.game);
             sessionStorage.setItem("playerId", res.data.game.playerId);
             sessionStorage.setItem("username", username);
             sessionStorage.setItem("code", res.data.game.code);
             sessionStorage.setItem("isHost", true);
             router.push(`/lobby`);
         } catch (error) {
-            alert(error);
             showAlert("Wystąpił błąd serwera!");
         }
     }
