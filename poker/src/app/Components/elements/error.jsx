@@ -14,13 +14,10 @@ export default function Error({ text, onRemove }) {
     }, []);
 
     return (
-        <div className={`bg-red-500 mt-8 p-4 min-w-1/4 max-w-1/3 rounded-lg shadow-xl transition-all duration-1000 ease-in-out z-50 ${isLeaving ? 'opacity-0' : 'opacity-100'}`}>
-            <h1 className="text-white text-2xl font-bold text-center">Error</h1>
-            <div className="flex justify-between items-center mt-2">
-                <h1 className="w-1/12 text-white text-5xl font-bold text-center">!</h1>
-                <p className="w-10/12 text-md text-center">{text}</p>
-                <h1 className="w-1/12 text-white text-5xl font-bold text-center">!</h1>
-            </div>
+        <div class={`backdrop-blur-md bg-white/30 border border-white/20 p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center
+            transition-all duration-1000 ease-in-out z-50 ${isLeaving ? 'opacity-0' : 'opacity-100'}`}>
+            <h1 className="text-red-500 text-4xl font-bold mb-2 text-shadow-lg text-shadow-red-300/50">No i co ty robisz?</h1>
+            <p className="text-black font-bold text-sm mt-2">{text}</p>
         </div>
     );
 }
