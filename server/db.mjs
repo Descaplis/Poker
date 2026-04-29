@@ -331,8 +331,10 @@ async function startGame(gameCode) {
   const game = await pool.query(
     `SELECT * FROM games WHERE code = $1`, [gameCode]
   ).then(res => res.rows[0]);
+
+  const playersCount = await pool.query(`SELECT COUNT(*) FROM players WHERE game_id = $1`, [game.id]).then(res => parseInt(res.rows[0].count));
   
-  const firstTurnSeat = (Number(game.big_blind_seat) + 1) % Number(game.players_amount);
+  const firstTurnSeat = (Number(game.big_blind_seat) + 1) % playersCount;
   const turnEndTime = Date.now() + game.time_for_move * 1000;
 
   await pool.query(
@@ -481,7 +483,7 @@ async function NextTurn(gameCode) {
   while (checked < players.length) {
     const candidate = players.find(p => p.seat === nextTurnSeat);
 
-    if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn && Number(candidate.balance > 0)) {
+    if (candidate && !candidate.is_folded && !candidate.hasGoneAllIn && Number(candidate.balance) > 0) {
       // finishing round if the only player with a move is the one who just made it
       if (nextTurnSeat == Number(game.current_turn_seat)) {
         break;
@@ -995,4 +997,12 @@ async function DeleteGame(gameCode) {
   return true;
 }
 
-export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, GetGameStatus, SetTurnEndTime, DeleteGame };
+async function CheckIfCanStartGame(gameCode) {
+  const count = await pool.query(
+    `SELECT COUNT(*) FROM players p JOIN games g ON p.game_id = g.id WHERE g.code = $1`,
+    [gameCode]
+  ).then(res => parseInt(res.rows[0].count));
+  return count >= 2;
+}
+
+export { CreateGame, JoinGame, LeaveGame, startGame, Raise, Check, Fold, GetListOfPlayers, GetMaximumRaiseValue, GetPlayerCards, GetCurrentTurnSeat, GetCurrentBet, GetSmallBlindSeat, GetBigBlindSeat, GetCardsOnTable, GetUserById, GetGameById, GetTimeForMove, GetPots, GetTurnEndTime, GetGameStatus, SetTurnEndTime, DeleteGame, CheckIfCanStartGame };
