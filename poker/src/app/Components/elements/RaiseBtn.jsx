@@ -37,7 +37,7 @@ export default function RaiseBtn({show, maxRaise, raiseAmount, setRaiseAmount, o
                     m-auto p-[1%] border border-black w-[20vw] shadow-xl/30 rounded-b-2xl animate-popup">
                     <label className="font-black text-white text-lg">O ile chcesz podbić:</label>
                     <input type="number" className="bg-amber-50 mt-[1vh] p-[1%] rounded-xl text-black" min={0} max={maxRaise} value={raiseAmountConverted()} onKeyDown={(e) => {
-                        if (!(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].includes(e.key))) {
+                        if (!(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Backspace', 'Delete'].includes(e.key))) {
                             e.preventDefault();
                         }
                     }}
